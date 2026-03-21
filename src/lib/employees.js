@@ -60,14 +60,19 @@ export const STATUSES = [
 /** Returns next working day's date (skip weekends) */
 export function getNextWorkingDay(fromDate = new Date()) {
   const date = new Date(fromDate)
-  // Use IST timezone
+  // Get current date/time in IST
   const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
   istDate.setDate(istDate.getDate() + 1)
   // Skip Saturday (6) and Sunday (0)
   while (istDate.getDay() === 0 || istDate.getDay() === 6) {
     istDate.setDate(istDate.getDate() + 1)
   }
-  return istDate.toISOString().split('T')[0] // YYYY-MM-DD
+  // ✅ Use local date parts directly — toISOString() would convert to UTC
+  //    and roll the date back by 5h30m for IST users (e.g. 23 Mar → 22 Mar)
+  const y = istDate.getFullYear()
+  const m = String(istDate.getMonth() + 1).padStart(2, '0')
+  const d = String(istDate.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}` // YYYY-MM-DD in IST
 }
 
 /** Format date as "Monday, March 23" */
