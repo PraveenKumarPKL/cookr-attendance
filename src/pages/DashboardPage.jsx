@@ -3,10 +3,10 @@ import { supabase } from '../lib/supabase'
 import { EMPLOYEES, getNextWorkingDay, formatDate } from '../lib/employees'
 
 const STATUS_META = {
-  office_lunch: { label: 'Office (Lunch)',  badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30', dot: 'bg-emerald-400' },
-  office_own:   { label: 'Office (Own)',    badge: 'bg-teal-500/20 text-teal-300 border border-teal-500/30',       dot: 'bg-teal-400'    },
-  wfh:          { label: 'WFH',             badge: 'bg-sky-500/20 text-sky-300 border border-sky-500/30',          dot: 'bg-sky-400'     },
-  leave:        { label: 'On Leave',        badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',    dot: 'bg-amber-400'   },
+  office_lunch: { label: 'Office (Lunch)', badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30', dot: 'bg-emerald-400' },
+  office_own: { label: 'Office (Own)', badge: 'bg-teal-500/20 text-teal-300 border border-teal-500/30', dot: 'bg-teal-400' },
+  wfh: { label: 'WFH', badge: 'bg-sky-500/20 text-sky-300 border border-sky-500/30', dot: 'bg-sky-400' },
+  leave: { label: 'On Leave', badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30', dot: 'bg-amber-400' },
 }
 
 const AVATAR_COLORS = [
@@ -62,15 +62,15 @@ export default function DashboardPage() {
   responses.forEach(r => { responseMap[r.employee_email.toLowerCase()] = r })
 
   const submitted = EMPLOYEES.filter(e => responseMap[e.email.toLowerCase()])
-  const pending   = EMPLOYEES.filter(e => !responseMap[e.email.toLowerCase()])
+  const pending = EMPLOYEES.filter(e => !responseMap[e.email.toLowerCase()])
 
-  const inOffice   = responses.filter(r => r.status === 'office_lunch' || r.status === 'office_own')
+  const inOffice = responses.filter(r => r.status === 'office_lunch' || r.status === 'office_own')
   const lunchCount = responses.filter(r => r.status === 'office_lunch').length
-  const wfhList    = responses.filter(r => r.status === 'wfh')
-  const leaveList  = responses.filter(r => r.status === 'leave')
+  const wfhList = responses.filter(r => r.status === 'wfh')
+  const leaveList = responses.filter(r => r.status === 'leave')
 
-  const total       = EMPLOYEES.length
-  const submitPct   = total > 0 ? Math.round((submitted.length / total) * 100) : 0
+  const total = EMPLOYEES.length
+  const submitPct = total > 0 ? Math.round((submitted.length / total) * 100) : 0
 
   const timeStr = lastRefreshed
     ? lastRefreshed.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
@@ -126,8 +126,8 @@ export default function DashboardPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-500 animate-fade-up">
             <svg className="animate-spin h-8 w-8 mb-3 text-cookr-500" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
             </svg>
             Loading responses…
           </div>
@@ -155,7 +155,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-cookr-100 text-xs font-semibold uppercase tracking-widest">🍽️ Lunch Order</p>
                   <p className="text-5xl font-black text-white mt-1">{lunchCount}</p>
-                  <p className="text-cookr-200 text-sm">meals to order today</p>
+                  <p className="text-cookr-200 text-sm">meals to order</p>
                 </div>
                 <div className="text-6xl opacity-30">🍱</div>
               </div>
