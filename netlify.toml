@@ -1,0 +1,28 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# ─── Scheduled Functions (IST = UTC+5:30) ────────────────────────────────────
+
+# 8:00 AM IST  → 02:30 UTC  (Mon–Fri)
+[functions."remind"]
+  schedule = "30 2 * * 1-5"
+
+# 1:00 PM IST  → 07:30 UTC  (Mon–Fri)
+[functions."remind-afternoon"]
+  schedule = "30 7 * * 1-5"
+
+# 5:00 PM IST  → 11:30 UTC  (Mon–Fri)
+[functions."remind-evening"]
+  schedule = "30 11 * * 1-5"
+
+# 11:45 PM IST → 18:15 UTC  (Mon–Fri)
+[functions."report"]
+  schedule = "15 18 * * 1-5"
+
+# ─── Redirects: SPA fallback ──────────────────────────────────────────────────
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
