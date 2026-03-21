@@ -2,6 +2,49 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { EMPLOYEES, STATUSES, getNextWorkingDay, formatDate } from '../lib/employees'
 
+// Initials avatar helper
+function getInitials(name) {
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+}
+
+// Pastel avatar colors per index
+const AVATAR_COLORS = [
+  'bg-violet-500', 'bg-sky-500', 'bg-emerald-500', 'bg-cookr-500',
+  'bg-rose-500', 'bg-amber-500', 'bg-teal-500', 'bg-indigo-500',
+  'bg-pink-500', 'bg-lime-600',
+]
+
+const STATUS_CONFIG = {
+  office_lunch: {
+    icon: '🏢',
+    gradient: 'from-emerald-600 to-emerald-500',
+    selectedGradient: 'from-emerald-700 to-emerald-600',
+    ring: 'ring-emerald-400',
+    glow: 'shadow-emerald-500/40',
+  },
+  office_own: {
+    icon: '🥡',
+    gradient: 'from-teal-600 to-teal-500',
+    selectedGradient: 'from-teal-700 to-teal-600',
+    ring: 'ring-teal-400',
+    glow: 'shadow-teal-500/40',
+  },
+  wfh: {
+    icon: '🏠',
+    gradient: 'from-sky-600 to-sky-500',
+    selectedGradient: 'from-sky-700 to-sky-600',
+    ring: 'ring-sky-400',
+    glow: 'shadow-sky-500/40',
+  },
+  leave: {
+    icon: '🌴',
+    gradient: 'from-amber-600 to-amber-500',
+    selectedGradient: 'from-amber-700 to-amber-600',
+    ring: 'ring-amber-400',
+    glow: 'shadow-amber-500/40',
+  },
+}
+
 export default function SubmitPage() {
   const targetDate = getNextWorkingDay()
   const [selectedEmployee, setSelectedEmployee] = useState('')
@@ -19,7 +62,7 @@ export default function SubmitPage() {
       .select('status')
       .eq('employee_email', email)
       .eq('date', targetDate)
-      .single()
+      .maybeSingle()
     if (data) {
       setExistingEntry(data.status)
       setSelectedStatus(data.status)
@@ -29,38 +72,34 @@ export default function SubmitPage() {
     }
   }
 
-  async function handleEmployeeChange(e) {
-    const email = e.target.value
+  function handleEmployeeSelect(email) {
     setSelectedEmployee(email)
     setError('')
     setSubmitted(false)
-    if (email) await checkExisting(email)
+    if (email) checkExisting(email)
   }
 
   async function handleSubmit() {
     if (!selectedEmployee || !selectedStatus) {
-      setError('Please select your name and status.')
+      setError('Please select your name and a status.')
       return
     }
     setLoading(true)
     setError('')
 
-    const payload = {
-      employee_email: selectedEmployee,
-      employee_name: employee.name,
-      date: targetDate,
-      status: selectedStatus,
-      updated_by_admin: false,
-    }
-
     const { error: upsertError } = await supabase
       .from('daily_responses')
-      .upsert(payload, { onConflict: 'employee_email,date' })
+      .upsert({
+        employee_email: selectedEmployee,
+        employee_name: employee.name,
+        date: targetDate,
+        status: selectedStatus,
+        updated_by_admin: false,
+      }, { onConflict: 'employee_email,date' })
 
     setLoading(false)
     if (upsertError) {
       setError('Something went wrong. Please try again.')
-      console.error(upsertError)
     } else {
       setSubmitted(true)
       setExistingEntry(selectedStatus)
@@ -70,117 +109,159 @@ export default function SubmitPage() {
   const statusLabel = STATUSES.find(s => s.key === existingEntry)?.label
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🍱</div>
-          <h1 className="text-2xl font-bold text-gray-800">Cookr Attendance</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Bangalore Team – Office Availability
-          </p>
-          <div className="mt-3 inline-block bg-orange-100 text-orange-700 text-sm font-medium px-3 py-1 rounded-full">
-            📅 {formatDate(targetDate)}
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-900 relative overflow-hidden flex flex-col">
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-cookr-500/10 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-violet-500/10 blur-3xl" />
+      </div>
 
-        {/* Employee Select */}
-        <div className="mb-5">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Select your name
-          </label>
-          <select
-            value={selectedEmployee}
-            onChange={handleEmployeeChange}
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-          >
-            <option value="">-- Choose your name --</option>
-            {EMPLOYEES.map(emp => (
-              <option key={emp.email} value={emp.email}>
-                {emp.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-start py-8 px-4">
+        <div className="w-full max-w-md">
 
-        {/* Already submitted notice */}
-        {existingEntry && !submitted && (
-          <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-xl p-3">
-            ✅ You already submitted: <strong>{statusLabel}</strong>. You can change it below.
-          </div>
-        )}
-
-        {/* Status Buttons */}
-        {selectedEmployee && (
-          <div className="mb-5">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              Your status for {formatDate(targetDate)}
-            </label>
-            <div className="grid grid-cols-1 gap-3">
-              {STATUSES.map(status => (
-                <button
-                  key={status.key}
-                  onClick={() => setSelectedStatus(status.key)}
-                  className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-150 ${
-                    selectedStatus === status.key
-                      ? status.selectedColor
-                      : status.color
-                  }`}
-                >
-                  {status.label}
-                  {status.sublabel && (
-                    <span className="block text-xs font-normal opacity-90 mt-0.5">
-                      {status.sublabel}
-                    </span>
-                  )}
-                </button>
-              ))}
+          {/* Header */}
+          <div className="text-center mb-8 animate-fade-up">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cookr-500 to-cookr-400 shadow-lg shadow-cookr-500/40 mb-4 text-3xl">
+              🍱
+            </div>
+            <h1 className="text-3xl font-bold text-white tracking-tight">Cookr Attendance</h1>
+            <p className="text-slate-400 mt-1 text-sm">Bangalore Team – Office Availability</p>
+            <div className="inline-flex items-center gap-1.5 mt-3 bg-cookr-500/15 border border-cookr-500/30 text-cookr-300 text-xs font-medium px-3 py-1.5 rounded-full">
+              📅 {formatDate(targetDate)}
             </div>
           </div>
-        )}
 
-        {/* Error */}
-        {error && (
-          <p className="text-red-600 text-sm mb-4 text-center">{error}</p>
-        )}
-
-        {/* Submit */}
-        {selectedEmployee && !submitted && (
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !selectedStatus}
-            className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-xl transition-colors"
-          >
-            {loading ? 'Submitting…' : existingEntry ? 'Update Status' : 'Submit'}
-          </button>
-        )}
-
-        {/* Success */}
-        {submitted && (
-          <div className="mt-2 bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-center">
-            <div className="text-3xl mb-2">✅</div>
-            <p className="font-semibold">Submitted successfully!</p>
-            <p className="text-sm mt-1">
-              {employee?.name} — {STATUSES.find(s => s.key === selectedStatus)?.label}
-            </p>
+          {/* Employee Picker */}
+          <div className="glass rounded-3xl p-5 mb-4 animate-fade-up">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Select your name</p>
+            <div className="grid grid-cols-2 gap-2">
+              {EMPLOYEES.map((emp, idx) => {
+                const isSelected = selectedEmployee === emp.email
+                return (
+                  <button
+                    key={emp.email}
+                    onClick={() => handleEmployeeSelect(emp.email)}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-200 border
+                      ${isSelected
+                        ? 'border-cookr-500 bg-cookr-500/15 shadow-lg shadow-cookr-500/20'
+                        : 'border-transparent bg-slate-800/60 hover:bg-slate-700/60 hover:border-slate-600'
+                      }`}
+                  >
+                    <span className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}>
+                      {getInitials(emp.name)}
+                    </span>
+                    <span className={`text-xs font-medium leading-tight ${isSelected ? 'text-cookr-300' : 'text-slate-300'}`}>
+                      {emp.name}
+                    </span>
+                    {isSelected && (
+                      <span className="ml-auto text-cookr-400">✓</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        )}
 
-        {/* Admin link */}
-        <div className="mt-6 text-center">
-          <a
-            href="/admin"
-            className="text-xs text-gray-400 hover:text-gray-600 underline"
-          >
-            Admin panel
-          </a>
-          {' · '}
-          <a
-            href="/dashboard"
-            className="text-xs text-gray-400 hover:text-gray-600 underline"
-          >
-            View dashboard
-          </a>
+          {/* Already submitted notice */}
+          {existingEntry && !submitted && (
+            <div className="glass border border-sky-500/30 bg-sky-500/10 text-sky-300 text-sm rounded-2xl p-3.5 mb-4 flex items-center gap-2 animate-fade-up">
+              <span className="text-lg">ℹ️</span>
+              <span>Already submitted: <strong className="text-sky-200">{statusLabel}</strong> — you can change it below.</span>
+            </div>
+          )}
+
+          {/* Status Cards */}
+          {selectedEmployee && (
+            <div className="glass rounded-3xl p-5 mb-4 animate-fade-up">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Your status for {formatDate(targetDate)}</p>
+              <div className="grid grid-cols-1 gap-3">
+                {STATUSES.map(status => {
+                  const cfg = STATUS_CONFIG[status.key]
+                  const isSelected = selectedStatus === status.key
+                  return (
+                    <button
+                      key={status.key}
+                      onClick={() => setSelectedStatus(status.key)}
+                      className={`status-card bg-gradient-to-r
+                        ${isSelected
+                          ? `${cfg.selectedGradient} ring-2 ${cfg.ring} shadow-xl ${cfg.glow} scale-[1.01]`
+                          : `${cfg.gradient} opacity-75 hover:opacity-100`
+                        }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{cfg.icon}</span>
+                        <div>
+                          <div className="font-semibold text-sm">{status.label}</div>
+                          {status.sublabel && (
+                            <div className="text-xs font-normal opacity-80 mt-0.5">{status.sublabel}</div>
+                          )}
+                        </div>
+                        {isSelected && (
+                          <span className="ml-auto text-lg">✓</span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-300 text-sm rounded-2xl px-4 py-3 mb-4 animate-fade-up">
+              <span>⚠️</span> {error}
+            </div>
+          )}
+
+          {/* Submit Button */}
+          {selectedEmployee && !submitted && (
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !selectedStatus}
+              className="btn-primary animate-fade-up"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  Submitting…
+                </span>
+              ) : existingEntry ? 'Update Status' : 'Submit'}
+            </button>
+          )}
+
+          {/* Success */}
+          {submitted && (
+            <div className="glass border border-emerald-500/30 bg-emerald-500/10 rounded-3xl p-6 text-center animate-scale-in">
+              <div className="text-5xl mb-3">🎉</div>
+              <p className="text-lg font-bold text-emerald-400">Submitted successfully!</p>
+              <p className="text-slate-300 text-sm mt-2">
+                <span className="font-semibold text-white">{employee?.name}</span>
+                {' — '}
+                <span className="text-emerald-300">{STATUSES.find(s => s.key === selectedStatus)?.label}</span>
+              </p>
+              <button
+                onClick={() => { setSubmitted(false); setSelectedEmployee(''); setSelectedStatus(''); setExistingEntry(null) }}
+                className="mt-4 text-xs text-slate-400 hover:text-white underline transition-colors"
+              >
+                Submit for another person
+              </button>
+            </div>
+          )}
+
+          {/* Bottom Nav */}
+          <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-500">
+            <a href="/dashboard" className="hover:text-cookr-400 transition-colors flex items-center gap-1">
+              📊 Dashboard
+            </a>
+            <span className="text-slate-700">·</span>
+            <a href="/admin" className="hover:text-slate-300 transition-colors flex items-center gap-1">
+              ⚙️ Admin
+            </a>
+          </div>
         </div>
       </div>
     </div>
