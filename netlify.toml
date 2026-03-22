@@ -10,6 +10,14 @@
 [functions."remind"]
   schedule = "30 2 * * 0,1-5"
 
+# ⚠️ TEMP: 8:30 AM IST → 03:00 UTC  (Mon–Fri + Sun for testing) — remove soon
+[functions."remind-830"]
+  schedule = "0 3 * * 0,1-5"
+
+# ⚠️ TEMP: 8:45 AM IST → 03:15 UTC  (Mon–Fri + Sun for testing) — remove soon
+[functions."remind-845"]
+  schedule = "15 3 * * 0,1-5"
+
 # 1:00 PM IST  → 07:30 UTC  (Mon–Fri + Sun for testing)
 [functions."remind-afternoon"]
   schedule = "30 7 * * 0,1-5"
