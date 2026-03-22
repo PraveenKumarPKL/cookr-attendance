@@ -80,3 +80,54 @@ export function formatDate(dateStr) {
   const date = new Date(dateStr + 'T12:00:00')
   return date.toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })
 }
+
+/** Format date as short "Mon 23" */
+export function formatDateShort(dateStr) {
+  const date = new Date(dateStr + 'T12:00:00')
+  return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' })
+}
+
+/** Returns working days for the current IST week.
+ *  Mon–Fri always included; if today is Sat/Sun, today is also appended
+ *  so weekend testing is possible. */
+export function getCurrentWeekWorkingDays() {
+  const now = new Date()
+  const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+
+  const day = istNow.getDay() // 0=Sun, 1=Mon … 6=Sat
+  const diffToMonday = day === 0 ? -6 : 1 - day // roll back to Monday
+
+  const monday = new Date(istNow)
+  monday.setDate(istNow.getDate() + diffToMonday)
+
+  const days = []
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    days.push(`${y}-${m}-${dd}`)
+  }
+
+  // If today is a weekend day, append it so testing works on Sat/Sun
+  if (day === 0 || day === 6) {
+    const y = istNow.getFullYear()
+    const m = String(istNow.getMonth() + 1).padStart(2, '0')
+    const dd = String(istNow.getDate()).padStart(2, '0')
+    const todayStr = `${y}-${m}-${dd}`
+    if (!days.includes(todayStr)) days.push(todayStr)
+  }
+
+  return days
+}
+
+/** Returns today's date in YYYY-MM-DD (IST) */
+export function getTodayIST() {
+  const now = new Date()
+  const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+  const y = istNow.getFullYear()
+  const m = String(istNow.getMonth() + 1).padStart(2, '0')
+  const d = String(istNow.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
