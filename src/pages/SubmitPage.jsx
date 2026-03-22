@@ -91,6 +91,8 @@ export default function SubmitPage() {
     setSelectedDates(prev =>
       prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]
     )
+    // If they pick a new date after a successful submission, show the form again
+    setSubmitted(false)
     setError('')
   }
 

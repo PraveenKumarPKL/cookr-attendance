@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs'
 import { supabase } from '../lib/supabase'
 import {
   EMPLOYEES, STATUSES,
-  getNextWorkingDay, formatDate, getTodayIST, getCurrentWeekWorkingDays,
+  getNextWorkingDay, formatDate, getTodayIST, getTwoWeeksWorkingDays,
 } from '../lib/employees'
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'cookr@admin2024'
@@ -225,7 +225,8 @@ function downloadCSV(rows, filename) {
 export default function AdminPage() {
   const targetDate = getNextWorkingDay()
   const today = getTodayIST()
-  const weekDays = getCurrentWeekWorkingDays()
+  const { thisWeek, nextWeek } = getTwoWeeksWorkingDays()
+  const allWeekDays = [...thisWeek, ...nextWeek]
 
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -533,8 +534,8 @@ export default function AdminPage() {
                   <input
                     type="date"
                     value={reportDate}
-                    min={weekDays[0]}
-                    max={weekDays[4]}
+                    min={thisWeek[0]}
+                    max={nextWeek[4]}
                     onChange={e => setReportDate(e.target.value)}
                     className="w-full glass rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/60 transition-all [color-scheme:dark]"
                   />
