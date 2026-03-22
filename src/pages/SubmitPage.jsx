@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   EMPLOYEES, STATUSES,
-  getCurrentWeekWorkingDays, formatDate, formatDateShort, getTodayIST,
+  getTwoWeeksWorkingDays, getWeekRangeLabel,
+  formatDate, formatDateShort, getTodayIST,
 } from '../lib/employees'
 
 function getInitials(name) {
@@ -17,50 +18,43 @@ const AVATAR_COLORS = [
 
 const STATUS_CONFIG = {
   office_lunch: {
-    icon: '🏢', label: 'Office', sublabel: 'I\'ll have lunch',
-    gradient: 'from-emerald-600 to-emerald-500',
-    selectedGradient: 'from-emerald-700 to-emerald-600',
-    ring: 'ring-emerald-400', glow: 'shadow-emerald-500/40',
-    dot: 'bg-emerald-400',
+    icon: '🏢', label: 'Office', sublabel: "I'll have lunch",
+    gradient: 'from-emerald-600 to-emerald-500', selectedGradient: 'from-emerald-700 to-emerald-600',
+    ring: 'ring-emerald-400', glow: 'shadow-emerald-500/40', dot: 'bg-emerald-400',
   },
   office_own: {
     icon: '🥡', label: 'Office', sublabel: 'Own lunch',
-    gradient: 'from-teal-600 to-teal-500',
-    selectedGradient: 'from-teal-700 to-teal-600',
-    ring: 'ring-teal-400', glow: 'shadow-teal-500/40',
-    dot: 'bg-teal-400',
+    gradient: 'from-teal-600 to-teal-500', selectedGradient: 'from-teal-700 to-teal-600',
+    ring: 'ring-teal-400', glow: 'shadow-teal-500/40', dot: 'bg-teal-400',
   },
   wfh: {
     icon: '🏠', label: 'WFH', sublabel: '',
-    gradient: 'from-sky-600 to-sky-500',
-    selectedGradient: 'from-sky-700 to-sky-600',
-    ring: 'ring-sky-400', glow: 'shadow-sky-500/40',
-    dot: 'bg-sky-400',
+    gradient: 'from-sky-600 to-sky-500', selectedGradient: 'from-sky-700 to-sky-600',
+    ring: 'ring-sky-400', glow: 'shadow-sky-500/40', dot: 'bg-sky-400',
   },
   leave: {
     icon: '🌴', label: 'Leave', sublabel: '',
-    gradient: 'from-amber-600 to-amber-500',
-    selectedGradient: 'from-amber-700 to-amber-600',
-    ring: 'ring-amber-400', glow: 'shadow-amber-500/40',
-    dot: 'bg-amber-400',
+    gradient: 'from-amber-600 to-amber-500', selectedGradient: 'from-amber-700 to-amber-600',
+    ring: 'ring-amber-400', glow: 'shadow-amber-500/40', dot: 'bg-amber-400',
   },
 }
 
 export default function SubmitPage() {
-  const weekDays = getCurrentWeekWorkingDays()
+  const { thisWeek, nextWeek } = getTwoWeeksWorkingDays()
+  const allDays = [...thisWeek, ...nextWeek]
   const today = getTodayIST()
 
   const [selectedEmployee, setSelectedEmployee] = useState('')
-  const [selectedDates, setSelectedDates] = useState([])
-  const [selectedStatus, setSelectedStatus] = useState('')
-  const [existingMap, setExistingMap] = useState({}) // date → status
-  const [loading, setLoading] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState('')
+  const [selectedDates, setSelectedDates]       = useState([])
+  const [selectedStatus, setSelectedStatus]     = useState('')
+  const [existingMap, setExistingMap]           = useState({}) // date → status
+  const [loading, setLoading]                   = useState(false)
+  const [submitted, setSubmitted]               = useState(false)
+  const [error, setError]                       = useState('')
 
   const employee = EMPLOYEES.find(e => e.email === selectedEmployee)
 
-  // When employee changes, fetch their existing responses for the whole week
+  // Fetch existing responses for both weeks when employee changes
   useEffect(() => {
     if (!selectedEmployee) {
       setExistingMap({})
@@ -68,12 +62,12 @@ export default function SubmitPage() {
       setSelectedStatus('')
       return
     }
-    async function fetchWeek() {
+    async function fetchWeeks() {
       const { data } = await supabase
         .from('daily_responses')
         .select('date, status')
         .eq('employee_email', selectedEmployee)
-        .in('date', weekDays)
+        .in('date', allDays)
       const map = {}
       if (data) data.forEach(r => { map[r.date] = r.status })
       setExistingMap(map)
@@ -82,7 +76,7 @@ export default function SubmitPage() {
       setSubmitted(false)
       setError('')
     }
-    fetchWeek()
+    fetchWeeks()
   }, [selectedEmployee])
 
   function handleEmployeeSelect(email) {
@@ -92,7 +86,6 @@ export default function SubmitPage() {
   }
 
   function toggleDate(date) {
-    // Can't select past days (before today)
     if (date < today) return
     setSelectedDates(prev =>
       prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]
@@ -100,9 +93,14 @@ export default function SubmitPage() {
     setError('')
   }
 
-  function selectAllFuture() {
-    const futureDays = weekDays.filter(d => d >= today)
-    setSelectedDates(futureDays)
+  function selectWeek(days) {
+    const futureDays = days.filter(d => d >= today)
+    const allSelected = futureDays.every(d => selectedDates.includes(d))
+    if (allSelected) {
+      setSelectedDates(prev => prev.filter(d => !futureDays.includes(d)))
+    } else {
+      setSelectedDates(prev => [...new Set([...prev, ...futureDays])])
+    }
   }
 
   async function handleSubmit() {
@@ -129,7 +127,6 @@ export default function SubmitPage() {
     if (upsertError) {
       setError('Something went wrong. Please try again.')
     } else {
-      // Update local map
       const newMap = { ...existingMap }
       selectedDates.forEach(d => { newMap[d] = selectedStatus })
       setExistingMap(newMap)
@@ -146,12 +143,75 @@ export default function SubmitPage() {
     setError('')
   }
 
-  const futureDays = weekDays.filter(d => d >= today)
-  const allFutureSelected = futureDays.length > 0 && futureDays.every(d => selectedDates.includes(d))
+  // Week-level helpers
+  function weekAllSelected(days) {
+    return days.filter(d => d >= today).every(d => selectedDates.includes(d))
+  }
+
+  // Date pill row for one week
+  function DateRow({ days, weekLabel }) {
+    const futureDays = days.filter(d => d >= today)
+    const allSel = futureDays.length > 0 && weekAllSelected(days)
+
+    return (
+      <div className="mb-2 last:mb-0">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{weekLabel}</span>
+          {futureDays.length > 0 && (
+            <button
+              onClick={() => selectWeek(days)}
+              className="text-[10px] text-cookr-400 hover:text-cookr-300 transition-colors font-medium"
+            >
+              {allSel ? 'Clear' : 'All'}
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-5 gap-1.5">
+          {days.map(date => {
+            const isPast    = date < today
+            const isToday   = date === today
+            const isSelected = selectedDates.includes(date)
+            const existing  = existingMap[date]
+            const cfg       = existing ? STATUS_CONFIG[existing] : null
+
+            return (
+              <button
+                key={date}
+                onClick={() => toggleDate(date)}
+                disabled={isPast}
+                className={`flex flex-col items-center py-2 rounded-xl transition-all duration-200 relative border
+                  ${isPast
+                    ? 'opacity-25 cursor-not-allowed border-transparent bg-slate-800/30'
+                    : isSelected
+                      ? 'border-cookr-500 bg-cookr-500/20 shadow-lg shadow-cookr-500/20'
+                      : 'border-slate-700/50 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-700/60'
+                  }`}
+              >
+                <span className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? 'text-cookr-400' : 'text-slate-400'}`}>
+                  {formatDateShort(date).split(' ')[0]}
+                </span>
+                <span className={`text-base font-bold leading-none mt-0.5 ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                  {formatDateShort(date).split(' ')[1]}
+                </span>
+                {isToday && <span className="text-[8px] text-cookr-400 font-bold mt-0.5">TODAY</span>}
+                {cfg && !isToday && <span className="text-[10px] mt-0.5">{cfg.icon}</span>}
+                {isSelected && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-cookr-500 rounded-full flex items-center justify-center">
+                    <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden flex flex-col">
-      {/* Background glows */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-cookr-500/10 blur-3xl" />
         <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-violet-500/10 blur-3xl" />
@@ -198,71 +258,33 @@ export default function SubmitPage() {
             </div>
           </div>
 
-          {/* Date Picker — show this week's working days */}
+          {/* Date Picker — this week + next week */}
           {selectedEmployee && (
             <div className="glass rounded-2xl p-3 mb-2 animate-fade-up">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Select date(s) this week</p>
-                {futureDays.length > 1 && (
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Select date(s)</p>
+                {selectedDates.length > 0 && (
                   <button
-                    onClick={allFutureSelected ? () => setSelectedDates([]) : selectAllFuture}
-                    className="text-xs text-cookr-400 hover:text-cookr-300 transition-colors font-medium"
+                    onClick={() => setSelectedDates([])}
+                    className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors"
                   >
-                    {allFutureSelected ? 'Clear all' : 'Select all'}
+                    Clear all
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-5 gap-1.5">
-                {weekDays.map(date => {
-                  const isPast = date < today
-                  const isToday = date === today
-                  const isSelected = selectedDates.includes(date)
-                  const existing = existingMap[date]
-                  const cfg = existing ? STATUS_CONFIG[existing] : null
 
-                  return (
-                    <button
-                      key={date}
-                      onClick={() => toggleDate(date)}
-                      disabled={isPast}
-                      className={`flex flex-col items-center py-2 rounded-xl transition-all duration-200 relative border
-                        ${isPast
-                          ? 'opacity-30 cursor-not-allowed border-transparent bg-slate-800/30'
-                          : isSelected
-                            ? 'border-cookr-500 bg-cookr-500/20 shadow-lg shadow-cookr-500/20'
-                            : 'border-slate-700/50 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-700/60'
-                        }`}
-                    >
-                      <span className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? 'text-cookr-400' : 'text-slate-400'}`}>
-                        {formatDateShort(date).split(' ')[0]}
-                      </span>
-                      <span className={`text-base font-bold leading-none mt-0.5 ${isSelected ? 'text-white' : 'text-slate-300'}`}>
-                        {formatDateShort(date).split(' ')[1]}
-                      </span>
-                      {isToday && (
-                        <span className="text-[8px] text-cookr-400 font-bold mt-0.5">TODAY</span>
-                      )}
-                      {cfg && !isToday && (
-                        <span className="text-[10px] mt-0.5">{cfg.icon}</span>
-                      )}
-                      {isSelected && (
-                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-cookr-500 rounded-full flex items-center justify-center">
-                          <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
+              <DateRow days={thisWeek} weekLabel={`This week · ${getWeekRangeLabel(thisWeek)}`} />
 
-              {/* Week summary of already submitted */}
+              <div className="border-t border-slate-700/40 my-2" />
+
+              <DateRow days={nextWeek} weekLabel={`Next week · ${getWeekRangeLabel(nextWeek)}`} />
+
+              {/* Already submitted summary */}
               {Object.keys(existingMap).length > 0 && (
                 <div className="mt-2 pt-2 border-t border-slate-700/50">
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Already submitted</p>
                   <div className="flex flex-wrap gap-1">
-                    {weekDays.filter(d => existingMap[d]).map(d => {
+                    {allDays.filter(d => existingMap[d]).map(d => {
                       const cfg = STATUS_CONFIG[existingMap[d]]
                       return (
                         <span key={d} className="flex items-center gap-1 bg-slate-800 rounded-lg px-1.5 py-0.5 text-[10px] text-slate-300">
@@ -301,9 +323,7 @@ export default function SubmitPage() {
                         <span className="text-lg">{cfg.icon}</span>
                         <div className="min-w-0">
                           <div className="font-semibold text-xs leading-tight">{cfg.label}</div>
-                          {cfg.sublabel && (
-                            <div className="text-xs font-normal opacity-80 truncate">{cfg.sublabel}</div>
-                          )}
+                          {cfg.sublabel && <div className="text-xs font-normal opacity-80 truncate">{cfg.sublabel}</div>}
                         </div>
                         {isSelected && <span className="ml-auto text-sm">✓</span>}
                       </div>
@@ -336,13 +356,12 @@ export default function SubmitPage() {
                   </svg>
                   Submitting…
                 </span>
-              ) : (
-                selectedDates.length > 1
-                  ? `Submit for ${selectedDates.length} days`
-                  : selectedDates.length === 1 && existingMap[selectedDates[0]]
-                    ? 'Update Status'
-                    : 'Submit'
-              )}
+              ) : selectedDates.length > 1
+                ? `Submit for ${selectedDates.length} days`
+                : selectedDates.length === 1 && existingMap[selectedDates[0]]
+                  ? 'Update Status'
+                  : 'Submit'
+              }
             </button>
           )}
 
@@ -358,10 +377,7 @@ export default function SubmitPage() {
                 {' for '}
                 <span className="text-white">{selectedDates.length} day{selectedDates.length > 1 ? 's' : ''}</span>
               </p>
-              <button
-                onClick={resetForm}
-                className="mt-3 text-xs text-slate-400 hover:text-white underline transition-colors"
-              >
+              <button onClick={resetForm} className="mt-3 text-xs text-slate-400 hover:text-white underline transition-colors">
                 Submit for another person
               </button>
             </div>
@@ -369,13 +385,9 @@ export default function SubmitPage() {
 
           {/* Bottom Nav */}
           <div className="mt-3 flex items-center justify-center gap-4 text-xs text-slate-500">
-            <a href="/dashboard" className="hover:text-cookr-400 transition-colors flex items-center gap-1">
-              📊 Dashboard
-            </a>
+            <a href="/dashboard" className="hover:text-cookr-400 transition-colors">📊 Dashboard</a>
             <span className="text-slate-700">·</span>
-            <a href="/admin" className="hover:text-slate-300 transition-colors flex items-center gap-1">
-              ⚙️ Admin
-            </a>
+            <a href="/admin" className="hover:text-slate-300 transition-colors">⚙️ Admin</a>
           </div>
         </div>
       </div>

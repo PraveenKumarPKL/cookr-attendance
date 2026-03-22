@@ -87,39 +87,67 @@ export function formatDateShort(dateStr) {
   return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' })
 }
 
-/** Returns working days for the current IST week.
- *  Mon–Fri always included; if today is Sat/Sun, today is also appended
- *  so weekend testing is possible. */
-export function getCurrentWeekWorkingDays() {
-  const now = new Date()
-  const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
-
-  const day = istNow.getDay() // 0=Sun, 1=Mon … 6=Sat
-  const diffToMonday = day === 0 ? -6 : 1 - day // roll back to Monday
-
-  const monday = new Date(istNow)
-  monday.setDate(istNow.getDate() + diffToMonday)
-
+/** Returns the 5 working days (Mon–Fri) for a given Monday date */
+function getWeekDays(monday) {
   const days = []
   for (let i = 0; i < 5; i++) {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const y  = d.getFullYear()
+    const m  = String(d.getMonth() + 1).padStart(2, '0')
     const dd = String(d.getDate()).padStart(2, '0')
     days.push(`${y}-${m}-${dd}`)
   }
+  return days
+}
 
-  // If today is a weekend day, append it so testing works on Sat/Sun
+/** Returns this week's Monday (IST) */
+function getMondayIST(istNow) {
+  const day = istNow.getDay() // 0=Sun … 6=Sat
+  const diffToMonday = day === 0 ? -6 : 1 - day
+  const monday = new Date(istNow)
+  monday.setDate(istNow.getDate() + diffToMonday)
+  return monday
+}
+
+/** Returns { thisWeek: string[], nextWeek: string[] } — both Mon–Fri.
+ *  If today is Sat/Sun, today is also appended to thisWeek for testing. */
+export function getTwoWeeksWorkingDays() {
+  const now    = new Date()
+  const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+  const day    = istNow.getDay()
+
+  const thisMonday = getMondayIST(istNow)
+  const nextMonday = new Date(thisMonday)
+  nextMonday.setDate(thisMonday.getDate() + 7)
+
+  const thisWeek = getWeekDays(thisMonday)
+  const nextWeek = getWeekDays(nextMonday)
+
+  // Append today on weekends for testing
   if (day === 0 || day === 6) {
-    const y = istNow.getFullYear()
-    const m = String(istNow.getMonth() + 1).padStart(2, '0')
+    const y  = istNow.getFullYear()
+    const m  = String(istNow.getMonth() + 1).padStart(2, '0')
     const dd = String(istNow.getDate()).padStart(2, '0')
     const todayStr = `${y}-${m}-${dd}`
-    if (!days.includes(todayStr)) days.push(todayStr)
+    if (!thisWeek.includes(todayStr)) thisWeek.push(todayStr)
   }
 
-  return days
+  return { thisWeek, nextWeek }
+}
+
+/** Kept for backward-compat — returns this week + today-on-weekend */
+export function getCurrentWeekWorkingDays() {
+  return getTwoWeeksWorkingDays().thisWeek
+}
+
+/** Short label for a week given its first day, e.g. "Mar 24 – 28" */
+export function getWeekRangeLabel(days) {
+  if (!days.length) return ''
+  const first = new Date(days[0] + 'T12:00:00')
+  const last  = new Date(days[days.length - 1] + 'T12:00:00')
+  const opts  = { month: 'short', day: 'numeric' }
+  return `${first.toLocaleDateString('en-IN', opts)} – ${last.toLocaleDateString('en-IN', { day: 'numeric' })}`
 }
 
 /** Returns today's date in YYYY-MM-DD (IST) */

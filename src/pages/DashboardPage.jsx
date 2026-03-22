@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   EMPLOYEES,
-  getCurrentWeekWorkingDays, formatDate, formatDateShort, getTodayIST,
+  getTwoWeeksWorkingDays, getWeekRangeLabel,
+  formatDate, formatDateShort, getTodayIST,
 } from '../lib/employees'
 
 const STATUS_META = {
@@ -23,12 +24,15 @@ function getInitials(name) {
 }
 
 export default function DashboardPage() {
-  const weekDays = getCurrentWeekWorkingDays()
+  const { thisWeek, nextWeek } = getTwoWeeksWorkingDays()
+  const allDays = [...thisWeek, ...nextWeek]
   const today = getTodayIST()
-  const [activeDay, setActiveDay] = useState(today)
-  const [view, setView] = useState('day') // 'day' | 'week'
-  const [responses, setResponses] = useState([])
-  const [loading, setLoading] = useState(true)
+
+  const [activeDay,  setActiveDay]  = useState(today)
+  const [view,       setView]       = useState('day')   // 'day' | 'week'
+  const [weekTab,    setWeekTab]    = useState('this')  // 'this' | 'next'
+  const [responses,  setResponses]  = useState([])
+  const [loading,    setLoading]    = useState(true)
   const [lastRefreshed, setLastRefreshed] = useState(null)
 
   const fetchResponses = useCallback(async () => {
@@ -36,7 +40,7 @@ export default function DashboardPage() {
     const { data, error } = await supabase
       .from('daily_responses')
       .select('*')
-      .in('date', weekDays)
+      .in('date', allDays)
     if (!error) setResponses(data || [])
     setLoading(false)
     setLastRefreshed(new Date())
@@ -44,22 +48,22 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchResponses() }, [fetchResponses])
 
-  // Build lookup: email+date → response
+  // Lookup: email+date → response
   const lookup = {}
   responses.forEach(r => {
-    const key = `${r.employee_email.toLowerCase()}::${r.date}`
-    lookup[key] = r
+    lookup[`${r.employee_email.toLowerCase()}::${r.date}`] = r
   })
-
   function getResponse(email, date) {
     return lookup[`${email.toLowerCase()}::${date}`] || null
   }
 
-  // ── Day view calculations ─────────────────────────────────────────────────
-  const dayResponses = responses.filter(r => r.date === activeDay)
-  const dayMap = {}
-  dayResponses.forEach(r => { dayMap[r.employee_email.toLowerCase()] = r })
+  // Active week days (for day-view tabs and week-view table)
+  const activeDays = weekTab === 'this' ? thisWeek : nextWeek
 
+  // ── Day view stats ────────────────────────────────────────────────────────
+  const dayResponses  = responses.filter(r => r.date === activeDay)
+  const dayMap        = {}
+  dayResponses.forEach(r => { dayMap[r.employee_email.toLowerCase()] = r })
   const submitted  = EMPLOYEES.filter(e => dayMap[e.email.toLowerCase()])
   const pending    = EMPLOYEES.filter(e => !dayMap[e.email.toLowerCase()])
   const inOffice   = dayResponses.filter(r => r.status === 'office_lunch' || r.status === 'office_own')
@@ -68,14 +72,19 @@ export default function DashboardPage() {
   const leaveList  = dayResponses.filter(r => r.status === 'leave')
   const total      = EMPLOYEES.length
   const submitPct  = total > 0 ? Math.round((submitted.length / total) * 100) : 0
+  const timeStr    = lastRefreshed ? lastRefreshed.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : null
 
-  const timeStr = lastRefreshed
-    ? lastRefreshed.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-    : null
+  // When switching week tabs in day view, jump active day to first day of that week
+  function handleWeekTab(tab) {
+    setWeekTab(tab)
+    const days = tab === 'this' ? thisWeek : nextWeek
+    // pick today if in this tab, else first future day
+    const preferred = days.find(d => d >= today) || days[0]
+    setActiveDay(preferred)
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 relative overflow-hidden flex flex-col">
-      {/* Background glows */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-cookr-500/10 blur-3xl" />
         <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-sky-500/10 blur-3xl" />
@@ -105,27 +114,25 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* View Toggle */}
+        {/* View Toggle (Day / Week) */}
         <div className="glass rounded-2xl p-1 animate-fade-up flex-shrink-0 flex">
+          <button onClick={() => setView('day')}  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all ${view === 'day'  ? 'bg-cookr-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>📅 Day View</button>
+          <button onClick={() => setView('week')} className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all ${view === 'week' ? 'bg-cookr-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>🗓️ Week View</button>
+        </div>
+
+        {/* Week Tab (This Week / Next Week) — shared by both views */}
+        <div className="glass rounded-2xl p-1 animate-fade-up flex-shrink-0 flex gap-1">
           <button
-            onClick={() => setView('day')}
-            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-              view === 'day'
-                ? 'bg-cookr-500 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            onClick={() => handleWeekTab('this')}
+            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all ${weekTab === 'this' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            📅 Day View
+            This Week · <span className="font-normal opacity-75">{getWeekRangeLabel(thisWeek)}</span>
           </button>
           <button
-            onClick={() => setView('week')}
-            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-              view === 'week'
-                ? 'bg-cookr-500 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            onClick={() => handleWeekTab('next')}
+            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all ${weekTab === 'next' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            🗓️ Week View
+            Next Week · <span className="font-normal opacity-75">{getWeekRangeLabel(nextWeek)}</span>
           </button>
         </div>
 
@@ -138,43 +145,34 @@ export default function DashboardPage() {
             Loading…
           </div>
         ) : view === 'day' ? (
-          // ── DAY VIEW ─────────────────────────────────────────────────────
+          // ── DAY VIEW ──────────────────────────────────────────────────────
           <>
-            {/* Day Selector */}
+            {/* Day tabs */}
             <div className="glass rounded-2xl p-1 animate-fade-up flex-shrink-0 flex flex-wrap gap-1">
-              {weekDays.map(d => {
-                const isActive = d === activeDay
-                const isToday = d === today
-                const dayResponses = responses.filter(r => r.date === d)
-                const submittedCount = EMPLOYEES.filter(e =>
-                  dayResponses.some(r => r.employee_email.toLowerCase() === e.email.toLowerCase())
+              {activeDays.map(d => {
+                const isActive  = d === activeDay
+                const isToday   = d === today
+                const cnt = EMPLOYEES.filter(e =>
+                  responses.some(r => r.date === d && r.employee_email.toLowerCase() === e.email.toLowerCase())
                 ).length
-
                 return (
                   <button
                     key={d}
                     onClick={() => setActiveDay(d)}
-                    className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all text-center ${
-                      isActive
-                        ? 'bg-cookr-500 text-white shadow'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                    }`}
+                    className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all text-center min-w-[52px]
+                      ${isActive ? 'bg-cookr-500 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}
                   >
                     <span className={`text-[10px] font-bold uppercase tracking-wide ${isToday && !isActive ? 'text-cookr-400' : ''}`}>
                       {formatDateShort(d).split(' ')[0]}
                     </span>
-                    <span className="text-sm font-bold leading-none mt-0.5">
-                      {formatDateShort(d).split(' ')[1]}
-                    </span>
-                    <span className={`text-[9px] mt-0.5 ${isActive ? 'text-cookr-100' : 'text-slate-600'}`}>
-                      {submittedCount}/{total}
-                    </span>
+                    <span className="text-sm font-bold leading-none mt-0.5">{formatDateShort(d).split(' ')[1]}</span>
+                    <span className={`text-[9px] mt-0.5 ${isActive ? 'text-cookr-100' : 'text-slate-600'}`}>{cnt}/{total}</span>
                   </button>
                 )
               })}
             </div>
 
-            {/* Progress Bar */}
+            {/* Progress */}
             <div className="glass rounded-2xl px-4 py-3 animate-fade-up flex-shrink-0">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
                 <span>
@@ -184,10 +182,7 @@ export default function DashboardPage() {
                 <span className="font-semibold text-white">{submitPct}%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-1.5">
-                <div
-                  className="h-1.5 rounded-full bg-gradient-to-r from-cookr-500 to-cookr-400 transition-all duration-700"
-                  style={{ width: `${submitPct}%` }}
-                />
+                <div className="h-1.5 rounded-full bg-gradient-to-r from-cookr-500 to-cookr-400 transition-all duration-700" style={{ width: `${submitPct}%` }} />
               </div>
               <p className="text-xs text-slate-500 mt-1">
                 {submitted.length} of {total} submitted
@@ -215,7 +210,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Lunch featured card */}
+            {/* Lunch card */}
             <div className="bg-gradient-to-r from-cookr-600 to-cookr-500 rounded-2xl px-4 py-3 shadow-xl shadow-cookr-500/30 animate-fade-up flex-shrink-0 flex items-center justify-between">
               <div>
                 <p className="text-cookr-100 text-xs font-semibold uppercase tracking-widest">🍽️ Lunch Order</p>
@@ -225,7 +220,7 @@ export default function DashboardPage() {
               <div className="text-5xl opacity-25">🍱</div>
             </div>
 
-            {/* Employee grid */}
+            {/* Team grid */}
             <div className="glass rounded-2xl p-3 animate-fade-up">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Team Status</p>
               {pending.length === 0 && (
@@ -236,19 +231,18 @@ export default function DashboardPage() {
               )}
               <div className="grid grid-cols-2 gap-1.5">
                 {EMPLOYEES.map((emp, idx) => {
-                  const response = dayMap[emp.email.toLowerCase()]
-                  const meta = response ? STATUS_META[response.status] : null
+                  const r    = dayMap[emp.email.toLowerCase()]
+                  const meta = r ? STATUS_META[r.status] : null
                   return (
                     <div key={emp.email} className="flex items-center gap-2 bg-slate-800/50 rounded-xl px-2.5 py-2">
                       <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}>
                         {getInitials(emp.name)}
                       </span>
                       <span className="text-xs text-slate-200 flex-1 truncate leading-tight">{emp.name}</span>
-                      {meta ? (
-                        <span className="text-base leading-none flex-shrink-0">{meta.emoji}</span>
-                      ) : (
-                        <span className="text-xs text-slate-600 flex-shrink-0">⏳</span>
-                      )}
+                      {meta
+                        ? <span className="text-base leading-none flex-shrink-0">{meta.emoji}</span>
+                        : <span className="text-xs text-slate-600 flex-shrink-0">⏳</span>
+                      }
                     </div>
                   )
                 })}
@@ -259,7 +253,9 @@ export default function DashboardPage() {
           // ── WEEK VIEW ──────────────────────────────────────────────────────
           <div className="glass rounded-2xl p-3 animate-fade-up">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Week at a Glance</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                {weekTab === 'this' ? 'This Week' : 'Next Week'} at a Glance
+              </p>
               <div className="flex gap-2 text-[10px] text-slate-500">
                 {Object.entries(STATUS_META).map(([, m]) => (
                   <span key={m.label} className="flex items-center gap-0.5">
@@ -268,19 +264,17 @@ export default function DashboardPage() {
                   </span>
                 ))}
                 <span className="flex items-center gap-0.5">
-                  <span className="w-2 h-2 rounded-full bg-slate-700" />
-                  ⏳
+                  <span className="w-2 h-2 rounded-full bg-slate-700" />⏳
                 </span>
               </div>
             </div>
 
-            {/* Table header: day columns */}
             <div className="overflow-x-auto -mx-1 px-1">
               <table className="w-full text-xs border-collapse min-w-[360px]">
                 <thead>
                   <tr>
                     <th className="text-left text-slate-500 font-semibold py-1.5 pr-2 w-24">Employee</th>
-                    {weekDays.map(d => (
+                    {activeDays.map(d => (
                       <th key={d} className={`text-center font-semibold py-1.5 px-1 ${d === today ? 'text-cookr-400' : 'text-slate-400'}`}>
                         <div>{formatDateShort(d).split(' ')[0]}</div>
                         <div className={`text-base leading-none ${d === today ? 'text-cookr-300' : 'text-slate-300'}`}>
@@ -304,17 +298,16 @@ export default function DashboardPage() {
                           </span>
                         </div>
                       </td>
-                      {weekDays.map(d => {
-                        const r = getResponse(emp.email, d)
+                      {activeDays.map(d => {
+                        const r    = getResponse(emp.email, d)
                         const meta = r ? STATUS_META[r.status] : null
                         return (
                           <td key={d} className="py-1.5 px-1 text-center">
                             <span
+                              title={meta ? meta.label : 'Not submitted'}
                               className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-base
                                 ${meta ? meta.cell : 'bg-slate-800/50 text-slate-700'}
-                                ${d === today ? 'ring-1 ring-cookr-500/40' : ''}
-                              `}
-                              title={meta ? meta.label : 'Not submitted'}
+                                ${d === today ? 'ring-1 ring-cookr-500/40' : ''}`}
                             >
                               {meta ? meta.emoji : '⏳'}
                             </span>
@@ -324,20 +317,14 @@ export default function DashboardPage() {
                     </tr>
                   ))}
                 </tbody>
-
-                {/* Summary row: office lunch count per day */}
                 <tfoot>
                   <tr className="border-t-2 border-slate-700">
                     <td className="py-2 pr-2 text-[10px] text-slate-500 font-semibold">🍽️ Lunch</td>
-                    {weekDays.map(d => {
+                    {activeDays.map(d => {
                       const count = responses.filter(r => r.date === d && r.status === 'office_lunch').length
                       return (
                         <td key={d} className="py-2 px-1 text-center">
-                          <span className={`inline-block min-w-[28px] text-xs font-bold rounded-lg px-1.5 py-0.5 ${
-                            count > 0
-                              ? 'bg-cookr-500/20 text-cookr-300'
-                              : 'text-slate-700'
-                          }`}>
+                          <span className={`inline-block min-w-[28px] text-xs font-bold rounded-lg px-1.5 py-0.5 ${count > 0 ? 'bg-cookr-500/20 text-cookr-300' : 'text-slate-700'}`}>
                             {count > 0 ? count : '—'}
                           </span>
                         </td>
@@ -348,7 +335,6 @@ export default function DashboardPage() {
               </table>
             </div>
 
-            {/* Legend */}
             <div className="mt-3 pt-3 border-t border-slate-700/50 grid grid-cols-2 gap-1">
               {Object.entries(STATUS_META).map(([, m]) => (
                 <div key={m.label} className="flex items-center gap-1.5 text-[11px] text-slate-400">
@@ -360,7 +346,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Bottom link */}
         <div className="text-center text-xs text-slate-600 flex-shrink-0">
           <a href="/" className="hover:text-cookr-400 transition-colors">← Back to Submit</a>
         </div>
