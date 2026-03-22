@@ -4,31 +4,22 @@
   functions = "netlify/functions"
 
 # ─── Scheduled Functions (IST = UTC+5:30) ────────────────────────────────────
-# ⚠️ TEMP: Sunday (0) added for testing — revert 0,1-5 → 1-5 after testing
 
-# 8:00 AM IST  → 02:30 UTC  (Mon–Fri + Sun for testing)
+# 8:00 AM IST  → 02:30 UTC  (Mon–Fri only)
 [functions."remind"]
-  schedule = "30 2 * * 0,1-5"
+  schedule = "30 2 * * 1-5"
 
-# ⚠️ TEMP: 8:30 AM IST → 03:00 UTC  (Mon–Fri + Sun for testing) — remove soon
-[functions."remind-830"]
-  schedule = "0 3 * * 0,1-5"
-
-# ⚠️ TEMP: 8:45 AM IST → 03:15 UTC  (Mon–Fri + Sun for testing) — remove soon
-[functions."remind-845"]
-  schedule = "15 3 * * 0,1-5"
-
-# 1:00 PM IST  → 07:30 UTC  (Mon–Fri + Sun for testing)
+# 1:00 PM IST  → 07:30 UTC  (Mon–Fri only)
 [functions."remind-afternoon"]
-  schedule = "30 7 * * 0,1-5"
+  schedule = "30 7 * * 1-5"
 
-# 5:00 PM IST  → 11:30 UTC  (Mon–Fri + Sun for testing)
+# 5:00 PM IST  → 11:30 UTC  (Mon–Fri only)
 [functions."remind-evening"]
-  schedule = "30 11 * * 0,1-5"
+  schedule = "30 11 * * 1-5"
 
-# 11:45 PM IST → 18:15 UTC  (Mon–Fri + Sun for testing)
+# 11:45 PM IST → 18:15 UTC  (Mon–Fri only)
 [functions."report"]
-  schedule = "15 18 * * 0,1-5"
+  schedule = "15 18 * * 1-5"
 
 # ─── Redirects: SPA fallback ──────────────────────────────────────────────────
 [[redirects]]

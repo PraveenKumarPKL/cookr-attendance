@@ -110,30 +110,19 @@ function getMondayIST(istNow) {
   return monday
 }
 
-/** Returns { thisWeek: string[], nextWeek: string[] } — both Mon–Fri.
- *  If today is Sat/Sun, today is also appended to thisWeek for testing. */
+/** Returns { thisWeek: string[], nextWeek: string[] } — both Mon–Fri only. */
 export function getTwoWeeksWorkingDays() {
   const now    = new Date()
   const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
-  const day    = istNow.getDay()
 
   const thisMonday = getMondayIST(istNow)
   const nextMonday = new Date(thisMonday)
   nextMonday.setDate(thisMonday.getDate() + 7)
 
-  const thisWeek = getWeekDays(thisMonday)
-  const nextWeek = getWeekDays(nextMonday)
-
-  // Append today on weekends for testing
-  if (day === 0 || day === 6) {
-    const y  = istNow.getFullYear()
-    const m  = String(istNow.getMonth() + 1).padStart(2, '0')
-    const dd = String(istNow.getDate()).padStart(2, '0')
-    const todayStr = `${y}-${m}-${dd}`
-    if (!thisWeek.includes(todayStr)) thisWeek.push(todayStr)
+  return {
+    thisWeek: getWeekDays(thisMonday),
+    nextWeek: getWeekDays(nextMonday),
   }
-
-  return { thisWeek, nextWeek }
 }
 
 /** Kept for backward-compat — returns this week + today-on-weekend */

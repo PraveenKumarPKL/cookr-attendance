@@ -50,6 +50,7 @@ export default function SubmitPage() {
   const [existingMap, setExistingMap]           = useState({}) // date → status
   const [loading, setLoading]                   = useState(false)
   const [submitted, setSubmitted]               = useState(false)
+  const [submitResult, setSubmitResult]         = useState({ newCount: 0, updatedCount: 0 })
   const [error, setError]                       = useState('')
 
   const employee = EMPLOYEES.find(e => e.email === selectedEmployee)
@@ -94,12 +95,13 @@ export default function SubmitPage() {
   }
 
   function selectWeek(days) {
-    const futureDays = days.filter(d => d >= today)
-    const allSelected = futureDays.every(d => selectedDates.includes(d))
+    // "Select all" only picks UNSUBMITTED future dates
+    const unsubmittedFuture = days.filter(d => d >= today && !existingMap[d])
+    const allSelected = unsubmittedFuture.length > 0 && unsubmittedFuture.every(d => selectedDates.includes(d))
     if (allSelected) {
-      setSelectedDates(prev => prev.filter(d => !futureDays.includes(d)))
+      setSelectedDates(prev => prev.filter(d => !unsubmittedFuture.includes(d)))
     } else {
-      setSelectedDates(prev => [...new Set([...prev, ...futureDays])])
+      setSelectedDates(prev => [...new Set([...prev, ...unsubmittedFuture])])
     }
   }
 
@@ -127,9 +129,12 @@ export default function SubmitPage() {
     if (upsertError) {
       setError('Something went wrong. Please try again.')
     } else {
+      const newCount     = selectedDates.filter(d => !existingMap[d]).length
+      const updatedCount = selectedDates.filter(d =>  existingMap[d]).length
       const newMap = { ...existingMap }
       selectedDates.forEach(d => { newMap[d] = selectedStatus })
       setExistingMap(newMap)
+      setSubmitResult({ newCount, updatedCount })
       setSubmitted(true)
     }
   }
@@ -143,59 +148,88 @@ export default function SubmitPage() {
     setError('')
   }
 
-  // Week-level helpers
-  function weekAllSelected(days) {
-    return days.filter(d => d >= today).every(d => selectedDates.includes(d))
+  // Week-level helpers — "All" only counts unsubmitted future days
+  function weekAllUnsubmittedSelected(days) {
+    const unsubFuture = days.filter(d => d >= today && !existingMap[d])
+    return unsubFuture.length > 0 && unsubFuture.every(d => selectedDates.includes(d))
   }
 
   // Date pill row for one week
   function DateRow({ days, weekLabel }) {
-    const futureDays = days.filter(d => d >= today)
-    const allSel = futureDays.length > 0 && weekAllSelected(days)
+    const unsubFuture = days.filter(d => d >= today && !existingMap[d])
+    const allSel = weekAllUnsubmittedSelected(days)
 
     return (
       <div className="mb-2 last:mb-0">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{weekLabel}</span>
-          {futureDays.length > 0 && (
+          {unsubFuture.length > 0 && (
             <button
               onClick={() => selectWeek(days)}
               className="text-[10px] text-cookr-400 hover:text-cookr-300 transition-colors font-medium"
             >
-              {allSel ? 'Clear' : 'All'}
+              {allSel ? 'Clear' : 'Select pending'}
             </button>
           )}
         </div>
         <div className="grid grid-cols-5 gap-1.5">
           {days.map(date => {
-            const isPast    = date < today
-            const isToday   = date === today
+            const isPast     = date < today
+            const isToday    = date === today
             const isSelected = selectedDates.includes(date)
-            const existing  = existingMap[date]
-            const cfg       = existing ? STATUS_CONFIG[existing] : null
+            const existing   = existingMap[date]  // already submitted status
+            const cfg        = existing ? STATUS_CONFIG[existing] : null
+            const isDone     = !!existing && !isSelected // submitted but not actively selected for update
 
             return (
               <button
                 key={date}
                 onClick={() => toggleDate(date)}
                 disabled={isPast}
+                title={isDone ? `Already submitted: ${cfg?.label}. Tap to update.` : ''}
                 className={`flex flex-col items-center py-2 rounded-xl transition-all duration-200 relative border
                   ${isPast
                     ? 'opacity-25 cursor-not-allowed border-transparent bg-slate-800/30'
-                    : isSelected
-                      ? 'border-cookr-500 bg-cookr-500/20 shadow-lg shadow-cookr-500/20'
-                      : 'border-slate-700/50 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-700/60'
+                    : isDone
+                      // already done — green/teal tint, NOT orange
+                      ? `border-emerald-600/50 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500`
+                      : isSelected
+                        ? 'border-cookr-500 bg-cookr-500/20 shadow-lg shadow-cookr-500/20'
+                        : 'border-slate-700/50 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-700/60'
                   }`}
               >
-                <span className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? 'text-cookr-400' : 'text-slate-400'}`}>
+                <span className={`text-[10px] font-semibold uppercase tracking-wide
+                  ${isToday ? 'text-cookr-400' : isDone ? 'text-emerald-500' : 'text-slate-400'}`}>
                   {formatDateShort(date).split(' ')[0]}
                 </span>
-                <span className={`text-base font-bold leading-none mt-0.5 ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                <span className={`text-base font-bold leading-none mt-0.5
+                  ${isDone ? 'text-emerald-300' : isSelected ? 'text-white' : 'text-slate-300'}`}>
                   {formatDateShort(date).split(' ')[1]}
                 </span>
-                {isToday && <span className="text-[8px] text-cookr-400 font-bold mt-0.5">TODAY</span>}
-                {cfg && !isToday && <span className="text-[10px] mt-0.5">{cfg.icon}</span>}
-                {isSelected && (
+
+                {/* Bottom label */}
+                {isDone
+                  ? <span className="text-[9px] text-emerald-500 mt-0.5">{cfg?.icon}</span>
+                  : isToday
+                    ? <span className="text-[8px] text-cookr-400 font-bold mt-0.5">TODAY</span>
+                    : null
+                }
+
+                {/* Top-right badge */}
+                {isDone && (
+                  // Green tick = already submitted
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                )}
+                {isSelected && existing && (
+                  // Orange arrow = will be updated
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-cookr-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold">↺</span>
+                )}
+                {isSelected && !existing && (
+                  // Orange tick = new selection
                   <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-cookr-500 rounded-full flex items-center justify-center">
                     <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -279,23 +313,12 @@ export default function SubmitPage() {
 
               <DateRow days={nextWeek} weekLabel={`Next week · ${getWeekRangeLabel(nextWeek)}`} />
 
-              {/* Already submitted summary */}
-              {Object.keys(existingMap).length > 0 && (
-                <div className="mt-2 pt-2 border-t border-slate-700/50">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Already submitted</p>
-                  <div className="flex flex-wrap gap-1">
-                    {allDays.filter(d => existingMap[d]).map(d => {
-                      const cfg = STATUS_CONFIG[existingMap[d]]
-                      return (
-                        <span key={d} className="flex items-center gap-1 bg-slate-800 rounded-lg px-1.5 py-0.5 text-[10px] text-slate-300">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg?.dot || 'bg-slate-500'}`} />
-                          {formatDateShort(d)} · {cfg?.icon}
-                        </span>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* Legend */}
+              <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center gap-3 text-[10px] text-slate-500">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Done</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cookr-500 inline-block" /> Selected</span>
+                <span className="flex items-center gap-1 ml-auto italic">Tap ✅ date to update it</span>
+              </div>
             </div>
           )}
 
@@ -369,14 +392,24 @@ export default function SubmitPage() {
           {submitted && (
             <div className="glass border border-emerald-500/30 bg-emerald-500/10 rounded-2xl p-4 text-center animate-scale-in">
               <div className="text-4xl mb-2">🎉</div>
-              <p className="text-base font-bold text-emerald-400">Submitted successfully!</p>
+              <p className="text-base font-bold text-emerald-400">Done!</p>
               <p className="text-slate-300 text-xs mt-1">
                 <span className="font-semibold text-white">{employee?.name}</span>
                 {' — '}
                 <span className="text-emerald-300">{STATUS_CONFIG[selectedStatus]?.icon} {STATUS_CONFIG[selectedStatus]?.label}</span>
-                {' for '}
-                <span className="text-white">{selectedDates.length} day{selectedDates.length > 1 ? 's' : ''}</span>
               </p>
+              <div className="flex items-center justify-center gap-3 mt-2">
+                {submitResult.newCount > 0 && (
+                  <span className="bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[11px] rounded-lg px-2 py-0.5">
+                    ✓ {submitResult.newCount} new day{submitResult.newCount > 1 ? 's' : ''}
+                  </span>
+                )}
+                {submitResult.updatedCount > 0 && (
+                  <span className="bg-cookr-500/20 border border-cookr-500/30 text-cookr-300 text-[11px] rounded-lg px-2 py-0.5">
+                    ↺ {submitResult.updatedCount} updated
+                  </span>
+                )}
+              </div>
               <button onClick={resetForm} className="mt-3 text-xs text-slate-400 hover:text-white underline transition-colors">
                 Submit for another person
               </button>
