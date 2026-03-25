@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This App Does
 
-Daily office attendance tracker for Cookr's Bangalore team (10 employees). Employees submit their next-working-day status (Office+Lunch, Office Own Lunch, WFH, or Leave) via a web form. Scheduled Netlify functions send reminders at 8 AM, 1 PM, and 5 PM IST, and a final report at 11:45 PM IST to all team members.
+Daily office attendance tracker for Cookr's Bangalore team (17 employees). Employees submit their next-working-day status (Office+Lunch, Office Own Lunch, WFH, or Leave) via a web form. Scheduled Netlify functions send reminders at 8 AM, 1 PM, and 5 PM IST, and a final report at 11:45 PM IST to all team members.
 
 ## Commands
 
@@ -25,7 +25,7 @@ Three pages under `src/pages/`:
 - **DashboardPage** (`/dashboard`) — live headcount summary fetched from Supabase
 
 Shared helpers in `src/lib/`:
-- `employees.js` — hardcoded list of 10 employees, status type definitions, `getNextWorkingDay()` (IST-aware), `formatDate()`
+- `employees.js` — hardcoded list of 17 employees, status type definitions, `getNextWorkingDay()` (IST-aware), `formatDate()`
 - `supabase.js` — Supabase client initialised from `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
 
 ### Backend (Netlify Scheduled Functions)
@@ -33,14 +33,15 @@ All functions are ES modules (`.mjs`) under `netlify/functions/`:
 
 | Function | Cron (UTC) | IST Time | Purpose |
 |---|---|---|---|
-| `remind.mjs` | `30 2 * * 0,1-5` | 8:00 AM | 1st reminder |
-| `remind-afternoon.mjs` | `30 7 * * 0,1-5` | 1:00 PM | 2nd reminder |
-| `remind-evening.mjs` | `30 11 * * 0,1-5` | 5:00 PM | 3rd reminder |
-| `report.mjs` | `15 18 * * 0,1-5` | 11:45 PM | Daily report |
+| `remind.mjs` | `30 2 * * 1-5` | 8:00 AM | 1st reminder |
+| `remind-afternoon.mjs` | `30 7 * * 1-5` | 1:00 PM | 2nd reminder |
+| `remind-evening.mjs` | `30 11 * * 1-5` | 5:00 PM | 3rd reminder |
+| `report-evening.mjs` | `15 12 * * 1-5` | 5:45 PM | Interim report |
+| `report.mjs` | `15 18 * * 1-5` | 11:45 PM | Final daily report |
 
-> **Note:** Sunday (`0`) is currently included for testing. Revert to `1-5` (Mon–Fri only) when done.
+Reminder functions fetch all employees, compare against today's `daily_responses` rows, and email pending employees via Brevo SMTP. The report aggregates all responses and emails 18 recipients (17 team + Archana).
 
-Reminder functions fetch all employees, compare against today's `daily_responses` rows, and email pending employees via Brevo SMTP. The report aggregates all responses and emails 12 recipients (10 team + 2 admins).
+Employee list and `getNextWorkingDay()` are shared via `netlify/functions/lib/employees.mjs` — edit only that file to add/remove employees.
 
 Shared email utilities live in `netlify/functions/lib/notify.mjs`: `sendEmail()`, `buildReminderHtml()`, `buildReport()`, `buildReportHtml()`.
 
@@ -74,5 +75,5 @@ See `.env.example` for a template (note: example uses Resend; actual deployment 
 
 - **No auth system.** Admin panel is protected by a single hardcoded password (`VITE_ADMIN_PASSWORD`).
 - **Email sending** uses `Promise.allSettled()` so one failed delivery doesn't block others.
-- **Temporary reminder functions** (`remind-830.mjs`, `remind-845.mjs`) added for 8:30 AM and 8:45 AM IST testing — remove when no longer needed and delete their entries from `netlify.toml`.
+- **Employee list** is centralised in `netlify/functions/lib/employees.mjs` — all backend functions import from there. To add/remove an employee, edit only that one file.
 - **Adding a new scheduled function** requires both a new `.mjs` file in `netlify/functions/` and a `[functions."name"] schedule = "..."` entry in `netlify.toml`.

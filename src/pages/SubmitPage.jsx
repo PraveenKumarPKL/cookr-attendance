@@ -1,20 +1,19 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import {
-  EMPLOYEES, STATUSES,
+  EMPLOYEES, STATUSES, TECH_TEAM, OPS_TEAM, AVATAR_COLORS,
   getTwoWeeksWorkingDays, getWeekRangeLabel,
   formatDate, formatDateShort, getTodayIST,
 } from '../lib/employees'
 
+const TEAM_GROUPS = [
+  { label: '💻 Tech Team',  employees: TECH_TEAM },
+  { label: '⚙️ Operations', employees: OPS_TEAM  },
+]
+
 function getInitials(name) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
-
-const AVATAR_COLORS = [
-  'bg-violet-500', 'bg-sky-500', 'bg-emerald-500', 'bg-cookr-500',
-  'bg-rose-500', 'bg-amber-500', 'bg-teal-500', 'bg-indigo-500',
-  'bg-pink-500', 'bg-lime-600',
-]
 
 const STATUS_CONFIG = {
   office_lunch: {
@@ -86,8 +85,17 @@ export default function SubmitPage() {
     setError('')
   }
 
+  // Lock the next working day after 10:30 AM IST
+  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+  const isPastDeadline = nowIST.getHours() > 10 || (nowIST.getHours() === 10 && nowIST.getMinutes() >= 30)
+  const deadlineDate = isPastDeadline ? today : null
+
+  function isLocked(date) {
+    return date < today || (deadlineDate !== null && date === deadlineDate)
+  }
+
   function toggleDate(date) {
-    if (date < today) return
+    if (isLocked(date)) return
     setSelectedDates(prev =>
       prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]
     )
@@ -97,8 +105,8 @@ export default function SubmitPage() {
   }
 
   function selectWeek(days) {
-    // "Select all" only picks UNSUBMITTED future dates
-    const unsubmittedFuture = days.filter(d => d >= today && !existingMap[d])
+    // "Select all" only picks UNSUBMITTED future dates that are not locked
+    const unsubmittedFuture = days.filter(d => !isLocked(d) && !existingMap[d])
     const allSelected = unsubmittedFuture.length > 0 && unsubmittedFuture.every(d => selectedDates.includes(d))
     if (allSelected) {
       setSelectedDates(prev => prev.filter(d => !unsubmittedFuture.includes(d)))
@@ -150,15 +158,15 @@ export default function SubmitPage() {
     setError('')
   }
 
-  // Week-level helpers — "All" only counts unsubmitted future days
+  // Week-level helpers — "All" only counts unsubmitted, unlocked days
   function weekAllUnsubmittedSelected(days) {
-    const unsubFuture = days.filter(d => d >= today && !existingMap[d])
+    const unsubFuture = days.filter(d => !isLocked(d) && !existingMap[d])
     return unsubFuture.length > 0 && unsubFuture.every(d => selectedDates.includes(d))
   }
 
   // Date pill row for one week
   function DateRow({ days, weekLabel }) {
-    const unsubFuture = days.filter(d => d >= today && !existingMap[d])
+    const unsubFuture = days.filter(d => !isLocked(d) && !existingMap[d])
     const allSel = weekAllUnsubmittedSelected(days)
 
     return (
@@ -176,22 +184,24 @@ export default function SubmitPage() {
         </div>
         <div className="grid grid-cols-5 gap-1.5">
           {days.map(date => {
-            const isPast     = date < today
-            const isToday    = date === today
-            const isSelected = selectedDates.includes(date)
-            const existing   = existingMap[date]  // already submitted status
-            const cfg        = existing ? STATUS_CONFIG[existing] : null
-            const isDone     = !!existing && !isSelected // submitted but not actively selected for update
+            const isPast      = date < today
+            const isDeadline  = deadlineDate !== null && date === deadlineDate
+            const isBlocked   = isPast || isDeadline
+            const isToday     = date === today
+            const isSelected  = selectedDates.includes(date)
+            const existing    = existingMap[date]  // already submitted status
+            const cfg         = existing ? STATUS_CONFIG[existing] : null
+            const isDone      = !!existing && !isSelected // submitted but not actively selected for update
 
             return (
               <button
                 key={date}
                 onClick={() => toggleDate(date)}
-                disabled={isPast}
-                title={isDone ? `Already submitted: ${cfg?.label}. Tap to update.` : ''}
+                disabled={isBlocked}
+                title={isDeadline ? 'Deadline passed (10:30 AM)' : isDone ? `Already submitted: ${cfg?.label}. Tap to update.` : ''}
                 className={`flex flex-col items-center py-2 rounded-xl transition-all duration-200 relative border
-                  ${isPast
-                    ? 'opacity-25 cursor-not-allowed border-transparent bg-slate-800/30'
+                  ${isBlocked
+                    ? 'opacity-30 cursor-not-allowed border-transparent bg-slate-800/30'
                     : isDone
                       // already done — green/teal tint, NOT orange
                       ? `border-emerald-600/50 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500`
@@ -210,11 +220,13 @@ export default function SubmitPage() {
                 </span>
 
                 {/* Bottom label */}
-                {isDone
-                  ? <span className="text-[9px] text-emerald-500 mt-0.5">{cfg?.icon}</span>
-                  : isToday
-                    ? <span className="text-[8px] text-cookr-400 font-bold mt-0.5">TODAY</span>
-                    : null
+                {isDeadline
+                  ? <span className="text-[9px] mt-0.5">🔒</span>
+                  : isDone
+                    ? <span className="text-[9px] text-emerald-500 mt-0.5">{cfg?.icon}</span>
+                    : isToday
+                      ? <span className="text-[8px] text-cookr-400 font-bold mt-0.5">TODAY</span>
+                      : null
                 }
 
                 {/* Top-right badge */}
@@ -247,13 +259,13 @@ export default function SubmitPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 relative overflow-hidden flex flex-col">
+    <div className="h-screen bg-slate-900 relative overflow-hidden flex flex-col">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-cookr-500/10 blur-3xl" />
         <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-violet-500/10 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex-1 flex flex-col items-center py-4 px-4">
+      <div className="relative z-10 flex-1 flex flex-col items-center py-4 px-4 overflow-y-auto">
         <div className="w-full max-w-md">
 
           {/* Header */}
@@ -268,30 +280,35 @@ export default function SubmitPage() {
           {/* Employee Picker */}
           <div className="glass rounded-2xl p-3 mb-2 animate-fade-up">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Select your name</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {EMPLOYEES.map((emp, idx) => {
-                const isSelected = selectedEmployee === emp.email
-                return (
-                  <button
-                    key={emp.email}
-                    onClick={() => handleEmployeeSelect(emp.email)}
-                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left transition-all duration-200 border
-                      ${isSelected
-                        ? 'border-cookr-500 bg-cookr-500/15 shadow-lg shadow-cookr-500/20'
-                        : 'border-transparent bg-slate-800/60 hover:bg-slate-700/60 hover:border-slate-600'
-                      }`}
-                  >
-                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}>
-                      {getInitials(emp.name)}
-                    </span>
-                    <span className={`text-xs font-medium leading-tight truncate ${isSelected ? 'text-cookr-300' : 'text-slate-300'}`}>
-                      {emp.name}
-                    </span>
-                    {isSelected && <span className="ml-auto text-cookr-400 text-xs flex-shrink-0">✓</span>}
-                  </button>
-                )
-              })}
-            </div>
+            {TEAM_GROUPS.map(group => (
+              <div key={group.label} className="mb-3 last:mb-0">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5 px-0.5">{group.label}</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {group.employees.map(emp => {
+                    const isSelected = selectedEmployee === emp.email
+                    return (
+                      <button
+                        key={emp.email}
+                        onClick={() => handleEmployeeSelect(emp.email)}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left transition-all duration-200 border
+                          ${isSelected
+                            ? 'border-cookr-500 bg-cookr-500/15 shadow-lg shadow-cookr-500/20'
+                            : 'border-transparent bg-slate-800/60 hover:bg-slate-700/60 hover:border-slate-600'
+                          }`}
+                      >
+                        <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white ${AVATAR_COLORS[emp.id % AVATAR_COLORS.length]}`}>
+                          {getInitials(emp.name)}
+                        </span>
+                        <span className={`text-xs font-medium leading-tight truncate ${isSelected ? 'text-cookr-300' : 'text-slate-300'}`}>
+                          {emp.name}
+                        </span>
+                        {isSelected && <span className="ml-auto text-cookr-400 text-xs flex-shrink-0">✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Date Picker — this week + next week */}
@@ -319,6 +336,7 @@ export default function SubmitPage() {
               <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center gap-3 text-[10px] text-slate-500">
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Done</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cookr-500 inline-block" /> Selected</span>
+                {isPastDeadline && <span className="flex items-center gap-1">🔒 Deadline</span>}
                 <span className="flex items-center gap-1 ml-auto italic">Tap ✅ date to update it</span>
               </div>
             </div>

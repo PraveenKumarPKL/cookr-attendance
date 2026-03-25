@@ -3,40 +3,17 @@
  * Triggered manually from the Admin panel "Send Test Report" button.
  */
 import { createClient } from '@supabase/supabase-js'
-import { sendEmail, buildReport, buildReportHtml } from './lib/notify.mjs'
+import { sendEmail, buildReport, buildReportHtml, sendTeamsReport } from './lib/notify.mjs'
+import { EMPLOYEES as ALL_EMPLOYEES, getTodayIST } from './lib/employees.mjs'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY,
 )
 
-const ALL_EMPLOYEES = [
-  { name: 'Adnan Ahmad Ansari',    email: 'AdnanahmadA@cookr.in' },
-  { name: 'Darshan K G',           email: 'darshan@cookr.in' },
-  { name: 'Leslie Savio Lawrence', email: 'LesliesavioL@cookr.in' },
-  { name: 'Praveenkumar L',        email: 'praveenkumar@cookr.in' },
-  { name: 'Raja R',                email: 'raja@cookr.in' },
-  { name: 'Santhosh Sivan',        email: 'SanthoshS@cookr.in' },
-  { name: 'Swetharani V',          email: 'SwetharaniV@cookr.in' },
-  { name: 'Tapas Biswas',          email: 'TapasB@cookr.in' },
-  { name: 'Vasanth K',             email: 'vasanth@cookr.in' },
-  { name: 'Yuvaraj S',             email: 'yuvaraj@cookr.in' },
-]
-
-function getNextWorkingDay() {
-  const now = new Date()
-  const ist = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
-  ist.setDate(ist.getDate() + 1)
-  while (ist.getDay() === 0 || ist.getDay() === 6) ist.setDate(ist.getDate() + 1)
-  const y  = ist.getFullYear()
-  const m  = String(ist.getMonth() + 1).padStart(2, '0')
-  const d  = String(ist.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
 export default async function handler(req, context) {
   // Allow both GET (manual curl) and POST (from admin button)
-  const targetDate = getNextWorkingDay()
+  const targetDate = getTodayIST()
 
   const { data: submissions, error } = await supabase
     .from('daily_responses')
@@ -67,14 +44,27 @@ export default async function handler(req, context) {
     weekday: 'long', month: 'long', day: 'numeric',
   })
 
-  // ⚠️ TEST MODE — send only to Praveen
-  const sent = await sendEmail({
-    to: 'praveenkumar@cookr.in',
-    subject: `🧪 [TEST] Attendance Report – ${dateLabel}`,
-    html: reportHtml,
-  })
+  // ⚠️ TEST MODE — send to Praveen, Abhishek & Archana only
+  const testRecipients = [
+    'praveenkumar@cookr.in',
+    'AbhishekP@cookr.in',
+    'ArchanaS@cookr.in',
+  ]
 
-  console.log(`🧪 Test report sent to praveenkumar@cookr.in | date: ${targetDate}`)
+  const results = await Promise.allSettled(
+    testRecipients.map(email =>
+      sendEmail({
+        to: email,
+        subject: `🧪 [TEST] Attendance Report – ${dateLabel}`,
+        html: reportHtml,
+      })
+    )
+  )
+  const sent = results.some(r => r.status === 'fulfilled' && r.value)
+
+  await sendTeamsReport(reportText)
+
+  console.log(`🧪 Test report sent to Praveen, Abhishek, Archana | date: ${targetDate}`)
 
   return new Response(
     JSON.stringify({ success: !!sent, date: targetDate, lunchCount, submissions: submissions.length }),

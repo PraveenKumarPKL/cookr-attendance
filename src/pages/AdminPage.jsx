@@ -2,17 +2,16 @@ import { useState, useEffect } from 'react'
 import ExcelJS from 'exceljs'
 import { supabase } from '../lib/supabase'
 import {
-  EMPLOYEES, STATUSES,
+  EMPLOYEES, STATUSES, TECH_TEAM, OPS_TEAM, AVATAR_COLORS,
   getNextWorkingDay, formatDate, getTodayIST, getTwoWeeksWorkingDays,
 } from '../lib/employees'
 
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'cookr@admin2024'
-
-const AVATAR_COLORS = [
-  'bg-violet-500', 'bg-sky-500', 'bg-emerald-500', 'bg-cookr-500',
-  'bg-rose-500', 'bg-amber-500', 'bg-teal-500', 'bg-indigo-500',
-  'bg-pink-500', 'bg-lime-600',
+const TEAM_GROUPS = [
+  { label: '💻 Tech Team', employees: TECH_TEAM },
+  { label: '⚙️ Operations', employees: OPS_TEAM },
 ]
+
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'cookr@admin2024'
 
 const STATUS_CONFIG = {
   office_lunch: {
@@ -67,36 +66,36 @@ async function downloadXLSX(rows, pendingEmps, reportDate) {
 
   // Column widths
   ws.columns = [
-    { key: 'name',    width: 28 },
-    { key: 'status',  width: 24 },
+    { key: 'name', width: 28 },
+    { key: 'status', width: 24 },
     { key: 'submittedAt', width: 22 },
-    { key: 'admin',   width: 18 },
+    { key: 'admin', width: 18 },
   ]
 
   // ── Title row ────────────────────────────────────────────────────────────
   ws.mergeCells('A1:D1')
   const titleCell = ws.getCell('A1')
   titleCell.value = '🍱 Cookr Attendance Report'
-  titleCell.font   = { name: 'Arial', bold: true, size: 16, color: { argb: 'FFFFFFFF' } }
-  titleCell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE87722' } }
+  titleCell.font = { name: 'Arial', bold: true, size: 16, color: { argb: 'FFFFFFFF' } }
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE87722' } }
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
   ws.getRow(1).height = 36
 
   // ── Date subtitle ─────────────────────────────────────────────────────────
   ws.mergeCells('A2:D2')
   const dateCell = ws.getCell('A2')
-  const dateObj  = new Date(reportDate + 'T12:00:00')
+  const dateObj = new Date(reportDate + 'T12:00:00')
   dateCell.value = dateObj.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-  dateCell.font  = { name: 'Arial', size: 11, color: { argb: 'FF7C3AED' }, italic: true }
-  dateCell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F3FF' } }
+  dateCell.font = { name: 'Arial', size: 11, color: { argb: 'FF7C3AED' }, italic: true }
+  dateCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F3FF' } }
   dateCell.alignment = { horizontal: 'center', vertical: 'middle' }
   ws.getRow(2).height = 22
 
   // ── Header row ────────────────────────────────────────────────────────────
   const headerRow = ws.addRow(['Employee Name', 'Status', 'Submitted At', 'Updated by Admin'])
   headerRow.eachCell(cell => {
-    cell.font   = { name: 'Arial', bold: true, size: 11, color: { argb: 'FFFFFFFF' } }
-    cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
+    cell.font = { name: 'Arial', bold: true, size: 11, color: { argb: 'FFFFFFFF' } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }
     cell.alignment = { horizontal: 'center', vertical: 'middle' }
     cell.border = {
       bottom: { style: 'medium', color: { argb: 'FFE87722' } },
@@ -107,13 +106,13 @@ async function downloadXLSX(rows, pendingEmps, reportDate) {
   // ── Status colour map ────────────────────────────────────────────────────
   const STATUS_FILL = {
     office_lunch: { bg: 'FFD1FAE5', fg: 'FF065F46' }, // emerald
-    office_own:   { bg: 'FFCCFBF1', fg: 'FF134E4A' }, // teal
-    wfh:          { bg: 'FFE0F2FE', fg: 'FF0C4A6E' }, // sky
-    leave:        { bg: 'FFFEF3C7', fg: 'FF78350F' }, // amber
+    office_own: { bg: 'FFCCFBF1', fg: 'FF134E4A' }, // teal
+    wfh: { bg: 'FFE0F2FE', fg: 'FF0C4A6E' }, // sky
+    leave: { bg: 'FFFEF3C7', fg: 'FF78350F' }, // amber
   }
 
   // ── Submitted rows ────────────────────────────────────────────────────────
-  rows.forEach((r, i) => {
+  rows.forEach(r => {
     const colors = STATUS_FILL[r.status] || { bg: 'FFF1F5F9', fg: 'FF334155' }
     const rowData = ws.addRow([
       r.employee_name,
@@ -152,20 +151,20 @@ async function downloadXLSX(rows, pendingEmps, reportDate) {
   summaryTitle.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } }
   ws.mergeCells(`A${summaryTitle.number}:D${summaryTitle.number}`)
 
-  const inOffice  = rows.filter(r => r.status === 'office_lunch' || r.status === 'office_own').length
+  const inOffice = rows.filter(r => r.status === 'office_lunch' || r.status === 'office_own').length
   const lunchOnly = rows.filter(r => r.status === 'office_lunch').length
-  const wfh       = rows.filter(r => r.status === 'wfh').length
-  const leave     = rows.filter(r => r.status === 'leave').length
-  const pending   = pendingEmps.length
-  const total     = rows.length + pending
+  const wfh = rows.filter(r => r.status === 'wfh').length
+  const leave = rows.filter(r => r.status === 'leave').length
+  const pending = pendingEmps.length
+  const total = rows.length + pending
 
   const summaryData = [
-    ['🏢 In Office',   inOffice],
+    ['🏢 In Office', inOffice],
     ['🍽️ Lunch Orders', lunchOnly],
     ['🏠 Work From Home', wfh],
-    ['🌴 On Leave',    leave],
+    ['🌴 On Leave', leave],
     ['⏳ Not Submitted', pending],
-    ['👥 Total Team',  total],
+    ['👥 Total Team', total],
   ]
 
   summaryData.forEach(([label, val]) => {
@@ -184,11 +183,11 @@ async function downloadXLSX(rows, pendingEmps, reportDate) {
 
   // ── Trigger browser download ───────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer()
-  const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-  const url    = URL.createObjectURL(blob)
-  const a      = document.createElement('a')
-  a.href       = url
-  a.download   = `attendance_${reportDate.replace(/-/g, '')}.xlsx`
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `attendance_${reportDate.replace(/-/g, '')}.xlsx`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -226,13 +225,13 @@ export default function AdminPage() {
   const targetDate = getNextWorkingDay()
   const today = getTodayIST()
   const { thisWeek, nextWeek } = getTwoWeeksWorkingDays()
-  const allWeekDays = [...thisWeek, ...nextWeek]
 
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [passwordError, setPasswordError] = useState('')
 
+  const [updateDate, setUpdateDate] = useState(targetDate)
   const [selectedEmployee, setSelectedEmployee] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('')
   const [loading, setLoading] = useState(false)
@@ -245,6 +244,12 @@ export default function AdminPage() {
 
   // Test report
   const [testReportLoading, setTestReportLoading] = useState(false)
+
+  // Guest users
+  const [guestDate, setGuestDate] = useState(targetDate)
+  const [guestCount, setGuestCount] = useState(0)
+  const [savedGuestCount, setSavedGuestCount] = useState(0)
+  const [guestSaving, setGuestSaving] = useState(false)
 
   function showToast(type, msg) {
     setToast({ type, msg })
@@ -260,6 +265,17 @@ export default function AdminPage() {
     }
   }
 
+  async function fetchEmployeeStatus(email, date) {
+    if (!email || !date) return
+    const { data } = await supabase
+      .from('daily_responses')
+      .select('status')
+      .eq('employee_email', email)
+      .eq('date', date)
+      .single()
+    setSelectedStatus(data?.status || '')
+  }
+
   async function handleUpdate() {
     if (!selectedEmployee || !selectedStatus) {
       showToast('error', 'Please select an employee and a status.')
@@ -268,12 +284,17 @@ export default function AdminPage() {
     setLoading(true)
 
     const employee = EMPLOYEES.find(e => e.email === selectedEmployee)
+    if (!employee) {
+      showToast('error', 'Employee not found.')
+      setLoading(false)
+      return
+    }
     const { error: upsertError } = await supabase
       .from('daily_responses')
       .upsert({
         employee_email: selectedEmployee,
         employee_name: employee.name,
-        date: targetDate,
+        date: updateDate,
         status: selectedStatus,
         updated_by_admin: true,
       }, { onConflict: 'employee_email,date' })
@@ -287,6 +308,47 @@ export default function AdminPage() {
       setSelectedEmployee('')
       setSelectedStatus('')
     }
+  }
+
+  async function fetchGuestCount(date) {
+    const d = date || guestDate
+    const { data } = await supabase
+      .from('daily_responses')
+      .select('employee_email')
+      .eq('date', d)
+      .like('employee_email', 'guest_%@cookr.internal')
+    const count = data?.length || 0
+    setSavedGuestCount(count)
+    setGuestCount(count)
+  }
+
+  async function handleSaveGuests() {
+    setGuestSaving(true)
+    // Remove all existing guest rows for this date
+    await supabase
+      .from('daily_responses')
+      .delete()
+      .eq('date', guestDate)
+      .like('employee_email', 'guest_%@cookr.internal')
+
+    // Insert N new guest rows
+    if (guestCount > 0) {
+      const rows = Array.from({ length: guestCount }, (_, i) => ({
+        employee_email: `guest_${i + 1}@cookr.internal`,
+        employee_name: 'Guest User',
+        date: guestDate,
+        status: 'office_lunch',
+        updated_by_admin: true,
+      }))
+      await supabase.from('daily_responses').insert(rows)
+    }
+
+    setSavedGuestCount(guestCount)
+    setGuestSaving(false)
+    showToast('success', guestCount === 0
+      ? 'Guest lunches removed.'
+      : `${guestCount} guest lunch${guestCount > 1 ? 'es' : ''} saved for ${formatDate(guestDate)}.`
+    )
   }
 
   async function fetchReport() {
@@ -306,8 +368,22 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    if (authenticated) fetchReport()
+    if (authenticated) {
+      fetchReport()
+    }
   }, [authenticated, reportDate])
+
+  useEffect(() => {
+    if (authenticated) {
+      fetchGuestCount(guestDate)
+    }
+  }, [authenticated, guestDate])
+
+  useEffect(() => {
+    if (authenticated && selectedEmployee) {
+      fetchEmployeeStatus(selectedEmployee, updateDate)
+    }
+  }, [updateDate])
 
   function handleDownloadCSV() {
     if (!reportData) return
@@ -401,7 +477,7 @@ export default function AdminPage() {
 
   // ─── Admin Panel ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-900 relative overflow-hidden flex flex-col">
+    <div className="h-screen bg-slate-900 relative overflow-hidden flex flex-col">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-violet-500/10 blur-3xl" />
         <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-cookr-500/10 blur-3xl" />
@@ -419,7 +495,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="relative z-10 flex-1 flex flex-col items-center py-4 px-4">
+      <div className="relative z-10 flex-1 flex flex-col items-center py-4 px-4 overflow-y-auto">
         <div className="w-full max-w-md flex flex-col gap-2">
 
           {/* Header */}
@@ -438,33 +514,51 @@ export default function AdminPage() {
           {/* ── MANUAL UPDATE SECTION ───────────────────────────────────── */}
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest px-1">Manual Status Update</p>
 
+          {/* Date Picker */}
+          <div className="glass rounded-2xl p-3 animate-fade-up">
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 block">Date</label>
+            <input
+              type="date"
+              value={updateDate}
+              min={thisWeek[0]}
+              max={nextWeek[4]}
+              onChange={e => setUpdateDate(e.target.value)}
+              className="w-full glass rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/60 transition-all [color-scheme:dark]"
+            />
+          </div>
+
           {/* Employee Picker */}
           <div className="glass rounded-2xl p-3 animate-fade-up">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Select employee</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {EMPLOYEES.map((emp, idx) => {
-                const isSelected = selectedEmployee === emp.email
-                return (
-                  <button
-                    key={emp.email}
-                    onClick={() => { setSelectedEmployee(emp.email); setSelectedStatus('') }}
-                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left transition-all duration-200 border
-                      ${isSelected
-                        ? 'border-violet-500 bg-violet-500/15 shadow-lg shadow-violet-500/20'
-                        : 'border-transparent bg-slate-800/60 hover:bg-slate-700/60 hover:border-slate-600'
-                      }`}
-                  >
-                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}>
-                      {getInitials(emp.name)}
-                    </span>
-                    <span className={`text-xs font-medium leading-tight truncate ${isSelected ? 'text-violet-300' : 'text-slate-300'}`}>
-                      {emp.name}
-                    </span>
-                    {isSelected && <span className="ml-auto text-violet-400 text-xs">✓</span>}
-                  </button>
-                )
-              })}
-            </div>
+            {TEAM_GROUPS.map(group => (
+              <div key={group.label} className="mb-3 last:mb-0">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5 px-0.5">{group.label}</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {group.employees.map(emp => {
+                    const isSelected = selectedEmployee === emp.email
+                    return (
+                      <button
+                        key={emp.email}
+                        onClick={() => { setSelectedEmployee(emp.email); fetchEmployeeStatus(emp.email, updateDate) }}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left transition-all duration-200 border
+                          ${isSelected
+                            ? 'border-violet-500 bg-violet-500/15 shadow-lg shadow-violet-500/20'
+                            : 'border-transparent bg-slate-800/60 hover:bg-slate-700/60 hover:border-slate-600'
+                          }`}
+                      >
+                        <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white ${AVATAR_COLORS[emp.id % AVATAR_COLORS.length]}`}>
+                          {getInitials(emp.name)}
+                        </span>
+                        <span className={`text-xs font-medium leading-tight truncate ${isSelected ? 'text-violet-300' : 'text-slate-300'}`}>
+                          {emp.name}
+                        </span>
+                        {isSelected && <span className="ml-auto text-violet-400 text-xs">✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Status Cards */}
@@ -513,14 +607,67 @@ export default function AdminPage() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
                   Updating…
                 </span>
               ) : 'Update Status'}
             </button>
           )}
+
+          {/* ── GUEST USERS SECTION ─────────────────────────────────────── */}
+          <div className="mt-2">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest px-1 mb-2">Guest Users</p>
+            <div className="glass rounded-2xl p-3 animate-fade-up">
+              <p className="text-xs text-slate-400 mb-3">
+                Add lunch orders for guests (CEO, WFH visitors or Others) coming to office.
+              </p>
+              {/* Date picker */}
+              <div className="mb-3">
+                <label className="text-xs text-slate-400 mb-1 block">Date</label>
+                <input
+                  type="date"
+                  value={guestDate}
+                  min={thisWeek[0]}
+                  max={nextWeek[4]}
+                  onChange={e => { setGuestDate(e.target.value) }}
+                  className="w-full glass rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cookr-500/60 transition-all [color-scheme:dark]"
+                />
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-slate-300">🧑‍💼 Guest Lunches</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setGuestCount(c => Math.max(0, c - 1))}
+                    className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-lg transition-all flex items-center justify-center active:scale-95"
+                  >−</button>
+                  <span className="w-6 text-center text-lg font-bold text-white">{guestCount}</span>
+                  <button
+                    onClick={() => setGuestCount(c => Math.min(10, c + 1))}
+                    className="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-lg transition-all flex items-center justify-center active:scale-95"
+                  >+</button>
+                </div>
+              </div>
+              {savedGuestCount > 0 && (
+                <p className="text-xs text-emerald-400 mb-2">
+                  ✓ Currently saved: {savedGuestCount} guest lunch{savedGuestCount > 1 ? 'es' : ''}
+                </p>
+              )}
+              <button
+                onClick={handleSaveGuests}
+                disabled={guestSaving}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cookr-600 to-cookr-500 hover:from-cookr-700 hover:to-cookr-600 text-white font-bold py-2.5 rounded-xl transition-all duration-200 text-sm disabled:opacity-60 shadow-lg hover:shadow-cookr-500/30 active:scale-[0.98]"
+              >
+                {guestSaving ? (
+                  <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>Saving…</>
+                ) : guestCount === 0
+                  ? 'Remove Guest Lunches'
+                  : `Save ${guestCount} Guest Lunch${guestCount > 1 ? 'es' : ''}`
+                }
+              </button>
+            </div>
+          </div>
 
           {/* ── REPORT SECTION ──────────────────────────────────────────── */}
           <div className="mt-2">
@@ -595,6 +742,14 @@ export default function AdminPage() {
                     <span className="text-slate-500 font-semibold">
                       {pendingEmployees.length} pending
                     </span>
+                    {reportData.filter(r => r.employee_name === 'Guest User').length > 0 && (
+                      <>
+                        <span>·</span>
+                        <span className="text-violet-400 font-semibold">
+                          🧑‍💼 {reportData.filter(r => r.employee_name === 'Guest User').length} guest
+                        </span>
+                      </>
+                    )}
                     <span className="ml-auto text-cookr-400 font-semibold">
                       🍽️ {reportData.filter(r => r.status === 'office_lunch').length} lunches
                     </span>
@@ -642,11 +797,11 @@ export default function AdminPage() {
 
           {/* Test Report */}
           <div className="mt-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest px-1 mb-2">🧪 Testing</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest px-1 mb-2">Report</p>
             <div className="glass rounded-2xl p-3">
-              <p className="text-xs text-slate-400 mb-2">
-                Triggers the nightly report function and sends it <span className="text-white font-semibold">only to you</span> (praveenkumar@cookr.in) with a <span className="text-amber-400">[TEST]</span> subject.
-              </p>
+              {/* <p className="text-xs text-slate-400 mb-2">
+                Triggers the nightly report function and sends it <span className="text-white font-semibold">only to you</span>.
+              </p> */}
               <button
                 onClick={handleSendTestReport}
                 disabled={testReportLoading}
@@ -655,13 +810,13 @@ export default function AdminPage() {
                 {testReportLoading ? (
                   <>
                     <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
                     Sending…
                   </>
                 ) : (
-                  <>📧 Send Test Report to Me</>
+                  <>📧 Send Report to Me</>
                 )}
               </button>
             </div>

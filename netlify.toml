@@ -17,6 +17,10 @@
 [functions."remind-evening"]
   schedule = "30 11 * * 1-5"
 
+# 5:45 PM IST  → 12:15 UTC  (Mon–Fri only)
+[functions."report-evening"]
+  schedule = "15 12 * * 1-5"
+
 # 11:45 PM IST → 18:15 UTC  (Mon–Fri only)
 [functions."report"]
   schedule = "15 18 * * 1-5"

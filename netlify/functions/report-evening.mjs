@@ -1,11 +1,10 @@
 /**
- * Scheduled report function — runs at 11:45 PM IST (Mon–Fri)
- * IST 11:45 PM = UTC 18:15
+ * Scheduled report function — runs at 5:45 PM IST (Mon–Fri)
+ * IST 5:45 PM = UTC 12:15
  *
  * 1. Fetches all submissions for tomorrow (next working day)
  * 2. Calculates lunch count
- * 3. Sends report email to ALL 10 team members + 3 admins (Archana, Abhishek)
- *    (No Teams webhook needed — everyone gets it in their inbox)
+ * 3. Sends report email to ALL team members + admins
  */
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, buildReport, buildReportHtml, sendTeamsReport } from './lib/notify.mjs'

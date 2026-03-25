@@ -1,17 +1,30 @@
 // ─── Employee List ────────────────────────────────────────────────────────────
-// All 10 employees who need to submit attendance daily
 export const EMPLOYEES = [
-  { id: 1, name: 'Adnan Ahmad Ansari',     email: 'AdnanahmadA@cookr.in' },
-  { id: 2, name: 'Darshan K G',            email: 'darshan@cookr.in' },
-  { id: 3, name: 'Leslie Savio Lawrence',  email: 'LesliesavioL@cookr.in' },
-  { id: 4, name: 'Praveenkumar L',         email: 'praveenkumar@cookr.in' },
-  { id: 5, name: 'Raja R',                 email: 'raja@cookr.in' },
-  { id: 6, name: 'Santhosh Sivan',         email: 'SanthoshS@cookr.in' },
-  { id: 7, name: 'Swetharani V',           email: 'SwetharaniV@cookr.in' },
-  { id: 8, name: 'Tapas Biswas',           email: 'TapasB@cookr.in' },
-  { id: 9, name: 'Vasanth K',              email: 'vasanth@cookr.in' },
-  { id: 10, name: 'Yuvaraj S',             email: 'yuvaraj@cookr.in' },
+  // ── Tech Team ──────────────────────────────────────────────────────────────
+  { id: 2,  name: 'Adnan Ahmad Ansari',    email: 'AdnanahmadA@cookr.in',   team: 'tech' },
+  { id: 3,  name: 'Darshan K G',           email: 'darshan@cookr.in',        team: 'tech' },
+  { id: 5,  name: 'Leslie Savio Lawrence', email: 'LesliesavioL@cookr.in',  team: 'tech' },
+  { id: 8,  name: 'Praveenkumar L',        email: 'praveenkumar@cookr.in',   team: 'tech' },
+  { id: 9,  name: 'Raja R',                email: 'raja@cookr.in',           team: 'tech' },
+  { id: 12, name: 'Santhosh Sivan',        email: 'SanthoshS@cookr.in',      team: 'tech' },
+  { id: 14, name: 'Swetharani V',          email: 'SwetharaniV@cookr.in',    team: 'tech' },
+  { id: 15, name: 'Tapas Biswas',          email: 'TapasB@cookr.in',         team: 'tech' },
+  { id: 16, name: 'Vasanth K',             email: 'vasanth@cookr.in',        team: 'tech' },
+  { id: 17, name: 'Yuvaraj S',             email: 'yuvaraj@cookr.in',        team: 'tech' },
+
+  // ── Operations Team ────────────────────────────────────────────────────────
+  { id: 1,  name: 'Abhishek P',            email: 'AbhishekP@cookr.in',      team: 'ops'  },
+  { id: 4,  name: 'Leena D',               email: 'DLeena@cookr.in',         team: 'ops'  },
+  { id: 6,  name: 'Mahadeva C',            email: 'MahadevaC@Nourisho.com',  team: 'ops'  },
+  { id: 7,  name: 'Mohammad S',            email: 'MohammadS@cookr.in',      team: 'ops'  },
+  { id: 10, name: 'Rajatulhas S',          email: 'RajatulhasS@cookr.in',    team: 'ops'  },
+  { id: 11, name: 'Sanjana N',             email: 'SanjanaN@Nourisho.com',   team: 'ops'  },
+  { id: 13, name: 'Sneha M',               email: 'SnehaM@cookr.in',         team: 'ops'  },
+
 ]
+
+export const TECH_TEAM = EMPLOYEES.filter(e => e.team === 'tech')
+export const OPS_TEAM  = EMPLOYEES.filter(e => e.team === 'ops')
 
 // ─── Admin Emails ─────────────────────────────────────────────────────────────
 export const ADMIN_EMAILS = [
@@ -54,6 +67,15 @@ export const STATUSES = [
     selectedColor: 'bg-orange-600 ring-4 ring-orange-300',
     textColor: 'text-white',
   },
+]
+
+// ─── UI Shared Constants ──────────────────────────────────────────────────────
+export const AVATAR_COLORS = [
+  'bg-violet-500', 'bg-sky-500', 'bg-emerald-500', 'bg-cookr-500',
+  'bg-rose-500', 'bg-amber-500', 'bg-teal-500', 'bg-indigo-500',
+  'bg-pink-500', 'bg-lime-600', 'bg-cyan-500', 'bg-fuchsia-500',
+  'bg-orange-500', 'bg-green-600', 'bg-blue-600', 'bg-red-500',
+  'bg-yellow-600', 'bg-purple-500',
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
