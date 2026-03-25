@@ -401,10 +401,11 @@ export default function AdminPage() {
     try {
       const res = await fetch('/.netlify/functions/test-report', { method: 'POST' })
       const json = await res.json()
+      const teamsStatus = json.teams?.ok ? '✅ Teams OK' : `❌ Teams: ${json.teams?.status || json.teams?.error || 'no response'}`
       if (json.success) {
-        showToast('success', `Test report sent to praveenkumar@cookr.in ✓ (${json.submissions} submissions for ${json.date})`)
+        showToast('success', `Email sent ✓ | ${teamsStatus}`)
       } else {
-        showToast('error', 'Failed to send test report. Check Netlify logs.')
+        showToast('error', `Email failed | ${teamsStatus}`)
       }
     } catch (e) {
       showToast('error', 'Network error — is the function deployed?')

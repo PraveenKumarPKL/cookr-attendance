@@ -167,7 +167,7 @@ export function buildReport({ date, inOffice, wfh, onLeave, lunchCount, pending 
   return text
 }
 
-// ─── Teams Notification (Adaptive Card) ──────────────────────────────────────
+// ─── Teams Notification (MessageCard) ────────────────────────────────────────
 export async function sendTeamsReport(reportText) {
   const webhookUrl = process.env.TEAMS_WEBHOOK_URL
   if (!webhookUrl) {
@@ -175,25 +175,17 @@ export async function sendTeamsReport(reportText) {
     return
   }
 
-  // Convert plain report text to Adaptive Card body blocks
-  const lines = reportText.split('\n').filter(l => l.trim() !== '')
-  const bodyBlocks = lines.map(line => {
-    const clean = line.replace(/\*(.*?)\*/g, '$1').replace(/_(.*?)_/g, '$1')
-    const isHeader = line.startsWith('📅') || line.endsWith(':*') || /^\*.*\*$/.test(line.trim())
-    return {
-      type: 'TextBlock',
-      text: clean,
-      wrap: true,
-      spacing: 'Small',
-      ...(isHeader ? { weight: 'Bolder', size: 'Medium' } : { size: 'Small' }),
-    }
-  })
+  const htmlText = reportText
+    .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+    .replace(/_(.*?)_/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>')
 
   const card = {
-    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    type: 'AdaptiveCard',
-    version: '1.2',
-    body: bodyBlocks,
+    '@type': 'MessageCard',
+    '@context': 'http://schema.org/extensions',
+    themeColor: 'F97316',
+    summary: 'Daily Attendance Report',
+    text: htmlText,
   }
 
   try {
@@ -215,12 +207,11 @@ export async function sendTeamsReport(reportText) {
   }
 }
 
-// ─── Teams Pending Reminder (Adaptive Card) ──────────────────────────────────
+// ─── Teams Pending Reminder (MessageCard) ────────────────────────────────────
 export async function sendTeamsPendingReminder(pendingNames, dateLabel, appUrl) {
   const webhookUrl = process.env.TEAMS_WEBHOOK_URL
   if (!webhookUrl || pendingNames.length === 0) return
 
-  // Group by team
   const grouped = {}
   pendingNames.forEach(name => {
     const t = NAME_TO_TEAM[name] || 'other'
@@ -228,27 +219,24 @@ export async function sendTeamsPendingReminder(pendingNames, dateLabel, appUrl) 
     grouped[t].push(name)
   })
 
-  const bodyBlocks = [
-    { type: 'TextBlock', text: `⏰ Attendance Reminder – ${dateLabel}`, weight: 'Bolder', size: 'Medium', wrap: true },
-    { type: 'TextBlock', text: `Hey team! 👋 Just a friendly reminder to fill in your attendance for tomorrow.`, wrap: true, spacing: 'Small' },
-    { type: 'TextBlock', text: `⏳ Still waiting on (${pendingNames.length}):`, weight: 'Bolder', spacing: 'Medium', wrap: true },
-  ]
+  let text = `<strong>⏰ Attendance Reminder – ${dateLabel}</strong><br>`
+  text += `Hey team! 👋 Just a friendly reminder to fill in your attendance for tomorrow.<br><br>`
+  text += `<strong>⏳ Still waiting on (${pendingNames.length}):</strong><br>`
   let n = 1
   TEAM_ORDER.forEach(({ key, label }) => {
     const group = grouped[key] || []
     if (!group.length) return
-    bodyBlocks.push({ type: 'TextBlock', text: label, weight: 'Bolder', spacing: 'Small', wrap: true })
-    group.forEach(name => {
-      bodyBlocks.push({ type: 'TextBlock', text: `${n++}. ${name}`, spacing: 'None', wrap: true })
-    })
+    text += `<strong>${label}</strong><br>`
+    group.forEach(name => { text += `${n++}. ${name}<br>` })
   })
-  bodyBlocks.push({ type: 'TextBlock', text: `Takes less than a minute — [tap here to submit 😊](${appUrl})`, spacing: 'Medium', wrap: true })
+  text += `<br><a href="${appUrl}">Submit Attendance →</a>`
 
   const card = {
-    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    type: 'AdaptiveCard',
-    version: '1.2',
-    body: bodyBlocks,
+    '@type': 'MessageCard',
+    '@context': 'http://schema.org/extensions',
+    themeColor: 'F97316',
+    summary: `Attendance Reminder – ${dateLabel}`,
+    text,
   }
 
   try {
