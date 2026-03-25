@@ -202,14 +202,16 @@ export async function sendTeamsReport(reportText) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(card),
     })
+    const responseText = await res.text()
     if (!res.ok) {
-      const text = await res.text()
-      console.error('Teams webhook error:', res.status, text)
-    } else {
-      console.log('✅ Teams notification sent')
+      console.error('Teams webhook error:', res.status, responseText)
+      return { ok: false, status: res.status, body: responseText }
     }
+    console.log('✅ Teams notification sent')
+    return { ok: true }
   } catch (err) {
     console.error('Teams webhook fetch error:', err.message)
+    return { ok: false, error: err.message }
   }
 }
 

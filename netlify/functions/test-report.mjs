@@ -62,12 +62,12 @@ export default async function handler(req, context) {
   )
   const sent = results.some(r => r.status === 'fulfilled' && r.value)
 
-  await sendTeamsReport(reportText)
+  const teamsResult = await sendTeamsReport(reportText)
 
-  console.log(`🧪 Test report sent to Praveen, Abhishek, Archana | date: ${targetDate}`)
+  console.log(`🧪 Test report sent | date: ${targetDate} | teams: ${JSON.stringify(teamsResult)}`)
 
   return new Response(
-    JSON.stringify({ success: !!sent, date: targetDate, lunchCount, submissions: submissions.length }),
+    JSON.stringify({ success: !!sent, date: targetDate, lunchCount, submissions: submissions.length, teams: teamsResult }),
     { headers: { 'Content-Type': 'application/json' } },
   )
 }
