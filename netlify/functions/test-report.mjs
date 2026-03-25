@@ -29,11 +29,11 @@ export default async function handler(req, context) {
   }
 
   const submittedEmails = new Set(submissions.map(s => s.employee_email.toLowerCase()))
-  const inOffice   = submissions.filter(r => r.status === 'office_lunch' || r.status === 'office_own')
-  const wfh        = submissions.filter(r => r.status === 'wfh')
-  const onLeave    = submissions.filter(r => r.status === 'leave')
+  const inOffice = submissions.filter(r => r.status === 'office_lunch' || r.status === 'office_own')
+  const wfh = submissions.filter(r => r.status === 'wfh')
+  const onLeave = submissions.filter(r => r.status === 'leave')
   const lunchCount = submissions.filter(r => r.status === 'office_lunch').length
-  const pending    = ALL_EMPLOYEES
+  const pending = ALL_EMPLOYEES
     .filter(e => !submittedEmails.has(e.email.toLowerCase()))
     .map(e => e.name)
 
@@ -55,7 +55,7 @@ export default async function handler(req, context) {
     testRecipients.map(email =>
       sendEmail({
         to: email,
-        subject: `🧪 [TEST] Attendance Report – ${dateLabel}`,
+        subject: `Attendance Report – ${dateLabel}`,
         html: reportHtml,
       })
     )

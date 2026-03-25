@@ -190,16 +190,10 @@ export async function sendTeamsReport(reportText) {
   })
 
   const card = {
-    type: 'message',
-    attachments: [{
-      contentType: 'application/vnd.microsoft.card.adaptive',
-      content: {
-        $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-        type: 'AdaptiveCard',
-        version: '1.2',
-        body: bodyBlocks,
-      },
-    }],
+    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+    type: 'AdaptiveCard',
+    version: '1.2',
+    body: bodyBlocks,
   }
 
   try {
@@ -249,16 +243,10 @@ export async function sendTeamsPendingReminder(pendingNames, dateLabel, appUrl) 
   bodyBlocks.push({ type: 'TextBlock', text: `Takes less than a minute — [tap here to submit 😊](${appUrl})`, spacing: 'Medium', wrap: true })
 
   const card = {
-    type: 'message',
-    attachments: [{
-      contentType: 'application/vnd.microsoft.card.adaptive',
-      content: {
-        $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-        type: 'AdaptiveCard',
-        version: '1.2',
-        body: bodyBlocks,
-      },
-    }],
+    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+    type: 'AdaptiveCard',
+    version: '1.2',
+    body: bodyBlocks,
   }
 
   try {
