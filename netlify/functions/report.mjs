@@ -9,7 +9,7 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, buildReport, buildReportHtml, sendTeamsReport } from './lib/notify.mjs'
-import { EMPLOYEES as ALL_EMPLOYEES, EXTRA_ADMINS, getTodayIST } from './lib/employees.mjs'
+import { EMPLOYEES as ALL_EMPLOYEES, EXTRA_ADMINS, getNextWorkingDay } from './lib/employees.mjs'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -17,7 +17,7 @@ const supabase = createClient(
 )
 
 export default async function handler(req, context) {
-  const targetDate = getTodayIST()
+  const targetDate = getNextWorkingDay()
 
   const { data: submissions, error } = await supabase
     .from('daily_responses')

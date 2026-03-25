@@ -34,7 +34,7 @@ export async function runReminder() {
     return new Response('All submitted', { status: 200 })
   }
 
-  const appUrl = process.env.APP_URL || 'https://cookr-attendance.netlify.app'
+  const appUrl = process.env.APP_URL || 'https://regal-centaur-fafc89.netlify.app'
   const dateLabel = new Date(targetDate + 'T12:00:00').toLocaleDateString('en-IN', {
     weekday: 'long', month: 'long', day: 'numeric',
   })

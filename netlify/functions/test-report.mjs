@@ -4,16 +4,16 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, buildReport, buildReportHtml, sendTeamsReport } from './lib/notify.mjs'
-import { EMPLOYEES as ALL_EMPLOYEES, getTodayIST } from './lib/employees.mjs'
+import { EMPLOYEES as ALL_EMPLOYEES, getNextWorkingDay } from './lib/employees.mjs'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY,
 )
 
-export default async function handler(req, context) {
-  // Allow both GET (manual curl) and POST (from admin button)
-  const targetDate = getTodayIST()
+export default async function handler(req, _context) {
+  const body = await req.json().catch(() => ({}))
+  const targetDate = body.date || getNextWorkingDay()
 
   const { data: submissions, error } = await supabase
     .from('daily_responses')

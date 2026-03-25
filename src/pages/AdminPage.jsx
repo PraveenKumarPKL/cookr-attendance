@@ -238,12 +238,14 @@ export default function AdminPage() {
   const [toast, setToast] = useState(null)
 
   // Report section
-  const [reportDate, setReportDate] = useState(today)
+  const [reportDate, setReportDate] = useState(targetDate)
+  const [testReportDate, setTestReportDate] = useState(targetDate)
   const [reportData, setReportData] = useState(null)
   const [reportLoading, setReportLoading] = useState(false)
 
   // Test report
   const [testReportLoading, setTestReportLoading] = useState(false)
+  const [testReminderLoading, setTestReminderLoading] = useState(false)
 
   // Guest users
   const [guestDate, setGuestDate] = useState(targetDate)
@@ -399,7 +401,11 @@ export default function AdminPage() {
   async function handleSendTestReport() {
     setTestReportLoading(true)
     try {
-      const res = await fetch('/.netlify/functions/test-report', { method: 'POST' })
+      const res = await fetch('/.netlify/functions/test-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: testReportDate }),
+      })
       const json = await res.json()
       const teamsStatus = json.teams?.ok ? '✅ Teams OK' : `❌ Teams: ${json.teams?.status || json.teams?.error || 'no response'}`
       if (json.success) {
@@ -411,6 +417,22 @@ export default function AdminPage() {
       showToast('error', 'Network error — is the function deployed?')
     }
     setTestReportLoading(false)
+  }
+
+  async function handleSendTestReminder() {
+    setTestReminderLoading(true)
+    try {
+      const res = await fetch('/.netlify/functions/remind', { method: 'POST' })
+      const json = await res.json()
+      if (json.sent === 0) {
+        showToast('success', 'Everyone already submitted ✓')
+      } else {
+        showToast('success', `Reminders sent to ${json.sent} people`)
+      }
+    } catch (e) {
+      showToast('error', 'Network error — is the function deployed?')
+    }
+    setTestReminderLoading(false)
   }
 
   const submittedEmails = new Set((reportData || []).map(r => r.employee_email.toLowerCase()))
@@ -800,9 +822,17 @@ export default function AdminPage() {
           <div className="mt-2">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest px-1 mb-2">Report</p>
             <div className="glass rounded-2xl p-3">
-              {/* <p className="text-xs text-slate-400 mb-2">
-                Triggers the nightly report function and sends it <span className="text-white font-semibold">only to you</span>.
-              </p> */}
+              <div className="mb-3">
+                <label className="text-xs text-slate-400 mb-1 block">Report Date</label>
+                <input
+                  type="date"
+                  value={testReportDate}
+                  min={thisWeek[0]}
+                  max={nextWeek[4]}
+                  onChange={e => setTestReportDate(e.target.value)}
+                  className="w-full glass rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/60 transition-all [color-scheme:dark]"
+                />
+              </div>
               <button
                 onClick={handleSendTestReport}
                 disabled={testReportLoading}
@@ -818,6 +848,23 @@ export default function AdminPage() {
                   </>
                 ) : (
                   <>📧 Send Report to Me</>
+                )}
+              </button>
+              <button
+                onClick={handleSendTestReminder}
+                disabled={testReminderLoading}
+                className="mt-2 w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white font-semibold py-2.5 rounded-xl transition-all duration-200 active:scale-[0.98] text-sm disabled:opacity-60 border border-slate-600"
+              >
+                {testReminderLoading ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    Sending…
+                  </>
+                ) : (
+                  <>⏰ Send Reminder for {new Date(targetDate + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</>
                 )}
               </button>
             </div>
